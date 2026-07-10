@@ -2,3 +2,5 @@
 __pycache__/
 *.pyc
 *.log
+logs/
+.last_run.json
