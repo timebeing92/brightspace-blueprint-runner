@@ -2,14 +2,15 @@
 # Windows (PowerShell 5.1+ or PowerShell 7):
 #     powershell -NoProfile -ExecutionPolicy Bypass -File blueprint_wizard.ps1
 # or double-click "Blueprint Wizard.bat".
+# NOTE: no Set-Location — the wizard resolves its own files absolutely, and
+# staying in the caller's directory lets relative --export paths work.
 $ErrorActionPreference = "Stop"
 $Here = Split-Path -Parent $MyInvocation.MyCommand.Path
-Set-Location $Here
 
 $MinVersion = [Version]"3.11"
 $AssumeYes = ($args -contains "--yes") -or ($args -contains "-y")
 
-function Ask-Yes([string]$Prompt, [bool]$Default = $false) {
+function Read-YesNo([string]$Prompt, [bool]$Default = $false) {
     if ($AssumeYes) { return $true }
     $suffix = if ($Default) { "[Y/n]" } else { "[y/N]" }
     $reply = Read-Host "$Prompt $suffix"
@@ -55,7 +56,7 @@ function Install-Python {
         Write-Host "winget was not found. Install Python 3.11+ from https://www.python.org/downloads/ (check 'Add python.exe to PATH'), then rerun this launcher."
         return $false
     }
-    if (-not (Ask-Yes "Install Python with winget now?" $true)) { return $false }
+    if (-not (Read-YesNo "Install Python with winget now?" $true)) { return $false }
     winget install --id Python.Python.3.12 -e --source winget
     return ($LASTEXITCODE -eq 0)
 }

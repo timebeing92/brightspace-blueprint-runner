@@ -7,7 +7,49 @@ with a results card. The pipeline itself lives entirely in the bundle — the
 wizard wraps its CLI and consumes its progress-event contract
 (`coursecraft.progress/1`); it never re-implements extraction logic.
 
-## Quickstart
+## Install
+
+Three pathways — pick the one that matches how you like to get software.
+Whichever you choose, first run is the same: the wizard checks the machine
+and asks permission before installing anything it needs (Python packages go
+in a private `.venv`; nothing touches your system Python).
+
+**1. Release zip — recommended for most people.** Download the latest
+`blueprint-wizard-vX.Y.zip` from the GitHub Releases page, unzip it, and
+double-click `Blueprint Wizard.command` (macOS) or `Blueprint Wizard.bat`
+(Windows). Choose this if you just want to use the tool: no git, no terminal
+knowledge, and updating means downloading the next zip. (macOS, first run
+only: if Gatekeeper warns about an unidentified developer, right-click the
+`.command` file and choose Open.)
+
+**2. git clone — for people who want `git pull` updates.** Clone the two
+repos as sibling folders, then launch from the runner:
+
+```bash
+git clone https://github.com/timebeing92/brightspace-blueprint-runner
+git clone https://github.com/timebeing92/brightspace-blueprint-bundle
+bash brightspace-blueprint-runner/blueprint_wizard.sh
+```
+
+Choose this if you're comfortable with git and want incremental updates and
+history instead of re-downloading zips.
+
+**3. Installer script — one command, terminal-first.**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/timebeing92/brightspace-blueprint-runner/main/install_blueprint_wizard.sh | bash
+```
+
+Clones both repos into `./blueprint-wizard/` and starts the wizard;
+re-running it later updates both repos. Choose this if you live in the
+terminal and want the fastest zero-to-wizard path. Requires git and repo
+access — while the repos are private this path is collaborators-only.
+
+Maintainers cut the release zip with `python3 scripts/make_release_bundle.py`
+(assembles both repos from git HEAD into `dist/blueprint-wizard-vX.Y.zip`,
+ready to attach to a GitHub release).
+
+## Run
 
 - **macOS** — double-click `Blueprint Wizard.command`, or from this folder:
 
@@ -82,10 +124,12 @@ brightspace-blueprint-runner/
 ├── Blueprint Wizard.bat     <- Windows double-click launcher (runs the .ps1)
 ├── blueprint_wizard.sh      <- macOS/Linux launcher: finds/offers Python 3.11+, execs the wizard
 ├── blueprint_wizard.ps1     <- Windows launcher: same job in PowerShell (winget install offer)
+├── install_blueprint_wizard.sh <- curl-able installer: clones both repos, starts the wizard
 └── scripts/
     ├── blueprint_wizard.py  <- the blueprint-specific flow
     ├── ui.py                <- reusable ANSI components (terminal caps, cards, step board)
-    └── art.py               <- splash scene + animation
+    ├── art.py               <- splash scene + animation
+    └── make_release_bundle.py <- maintainer tool: builds the release zip from both repos
 ```
 
 `ui.py` and `art.py` are deliberately free of blueprint knowledge so future

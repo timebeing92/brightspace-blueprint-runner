@@ -4,3 +4,4 @@ __pycache__/
 *.log
 logs/
 .last_run.json
+dist/

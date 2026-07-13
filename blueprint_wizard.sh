@@ -4,8 +4,9 @@
 #     bash blueprint_wizard.sh
 set -euo pipefail
 
+# NOTE: no cd — the wizard resolves its own files absolutely, and staying in
+# the caller's directory lets relative --export paths work as expected.
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$HERE"
 
 MIN_MAJOR=3
 MIN_MINOR=11
