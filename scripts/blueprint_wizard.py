@@ -463,6 +463,15 @@ def save_answers(options: dict) -> None:
         pass
 
 
+def suggested_output_name(options: dict, fallback: str) -> str:
+    """Build the suggested output name from what the user entered (course
+    number, or title, plus term) rather than the raw export filename; fall
+    back to the export-derived name only when those are blank."""
+    core = options.get("course_number") or options.get("course_title") or ""
+    text = f"{core} {options.get('term') or ''}".strip()
+    return safe_label(text) if text else fallback
+
+
 def gather_options(args: argparse.Namespace, export: Path, peek: dict) -> dict:
     if not args.yes:
         print(phase_heading("The commission"))
@@ -497,7 +506,7 @@ def gather_options(args: argparse.Namespace, export: Path, peek: dict) -> dict:
         options["course_title"] = ui.prompt_text(TERM, "Course title", default=options["course_title"])
         options["course_number"] = ui.prompt_text(TERM, "Course number (e.g. ABC 123)", default=options["course_number"])
         options["term"] = ui.prompt_text(TERM, "Term (e.g. Fall 2026)", default=options["term"])
-        suggested = options["label"] or derived_label
+        suggested = options["label"] or suggested_output_name(options, derived_label)
         print(TERM.dim(f"  The output name labels the results folder and files — e.g. {suggested}__blueprint.docx"))
         options["label"] = ui.prompt_text(TERM, "Output name", default=suggested)
         options["render_docx"] = ui.confirm(TERM, "Render the DOCX review document?", default=options["render_docx"])
@@ -518,7 +527,7 @@ def gather_options(args: argparse.Namespace, export: Path, peek: dict) -> dict:
                 TERM, "Run DOCX visual render QA? (needs LibreOffice + Poppler)", default=options["render_qa"]
             )
     if not options["label"]:
-        options["label"] = derived_label
+        options["label"] = suggested_output_name(options, derived_label)
     options["label"] = safe_label(options["label"])
     return options
 
