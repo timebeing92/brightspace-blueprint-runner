@@ -81,7 +81,10 @@ The wizard walks through:
    (including swapping the export itself).
 5. **The drafting** — live per-step progress with elapsed times, driven by
    the bundle's `--progress-events` NDJSON stream; raw step output scrolls
-   dimmed beneath.
+   dimmed beneath. Each step lingers on screen for a moment (with its
+   flavor line and a twinkling star) so the story is followable even though
+   the pipeline itself runs in a couple of seconds — `--brisk` skips the
+   theatrics.
 6. **Results** — total drafting time, weeks, QA break/warning/note counts,
    `Needs review` count, the generated files with sizes, and offers to open
    the folder or DOCX. If a step fails instead, the failure card names the
@@ -115,6 +118,8 @@ bash blueprint_wizard.sh --doctor --fix    # check and offer to fix
 - `--plain` — no color, art, or animation (also automatic when output is not
   a terminal, or `NO_COLOR` is set). Same information, plain text.
 - `--no-splash` — skip the splash screen only.
+- `--brisk` — run the step board at full speed instead of letting each step
+  linger ~1s (pacing is display-only and automatically off in plain mode).
 
 ## Layout
 

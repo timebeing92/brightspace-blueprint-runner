@@ -237,6 +237,8 @@ def choose(term: Term, prompt: str, options: list[tuple[str, str]], *, default: 
 # Live step board
 # ---------------------------------------------------------------------------
 SPINNER = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+# A small star drifting across the flavor line while a step runs.
+SPARKLE = ["✦ · ·", "· ✦ ·", "· · ✦", "· ✦ ·"]
 
 
 class StepBoard:
@@ -307,7 +309,10 @@ class StepBoard:
                 lines.append(f"  {mark} {term.bold(label)}  {suffix}")
                 flavor = self.flavor.get(label)
                 if flavor:
-                    lines.append("      " + term.dim(term.italic(flavor)))
+                    twinkle = SPARKLE[(self._spin // 2) % len(SPARKLE)]
+                    lines.append(
+                        "      " + term.dim(term.italic(flavor)) + "  " + term.accent(twinkle)
+                    )
             elif state == "ok":
                 lines.append(f"  {term.good('✓')} {label}  {term.dim(f'{self.seconds[index]:5.1f}s')}")
             elif state == "bad":

@@ -34,11 +34,16 @@ REQUIRED_MODULES = [
     ("pdf2image", "pdf2image"),
     ("jsonschema", "jsonschema"),
 ]
-VERSION = "2.1"
+VERSION = "2.2"
+
+# Minimum on-screen time per step in interactive runs, so the flavor line and
+# its animation register before the step flips to done. The pipeline itself is
+# not slowed — only the display. Eight steps add at most ~6 seconds.
+MIN_STEP_SECONDS = 0.8
 
 FLAVOR = {
     "Inventory export files": "The wizard surveys the archive…",
-    "Probe manifest": "Reading the manifest scroll…",
+    "Probe manifest": "The wizard holds the scroll to the light…",
     "Reconstruct course structure": "Rebuilding the halls of the course…",
     "Extract course activities": "Gathering assignments and discussions…",
     "Run QA report": "Casting detection spells…",
@@ -582,10 +587,13 @@ def open_log(label: str) -> tuple[Path, "object"]:
     return path, path.open("w", encoding="utf-8")
 
 
-def run_pipeline(bundle: Path, cmd: list[str], options: dict) -> tuple[int, dict | None, list[str], Path, str | None]:
+def run_pipeline(
+    bundle: Path, cmd: list[str], options: dict, *, pace: bool = False
+) -> tuple[int, dict | None, list[str], Path, str | None]:
     """Run the pipeline, rendering progress events live. Returns
     (exit code, run_end event or None, recent output lines, log path,
-    name of the step that failed or None)."""
+    name of the step that failed or None). With pace=True each step stays
+    on screen at least MIN_STEP_SECONDS so the flavor line registers."""
     log_path, log_file = open_log(options["label"])
     log_file.write("$ " + command_text(cmd) + "\n")
 
@@ -651,6 +659,12 @@ def run_pipeline(bundle: Path, cmd: list[str], options: dict) -> tuple[int, dict
                 index = payload["index"]
                 if payload["status"] != "ok" and 0 < index <= len(steps):
                     failed_step = steps[index - 1]
+                if pace and board.current >= 0:
+                    # Let the step linger long enough to be seen; the
+                    # pipeline itself has already moved on.
+                    while time.monotonic() - board.started < MIN_STEP_SECONDS:
+                        board.tick()
+                        time.sleep(0.07)
                 board.step_end(index, payload["status"], payload.get("seconds", 0.0))
                 if payload.get("message"):
                     recent.extend(payload["message"].splitlines())
@@ -804,7 +818,9 @@ def run_wizard(args: argparse.Namespace) -> int:
         return 2
 
     started = time.monotonic()
-    returncode, run_end, recent, log_path, failed_step = run_pipeline(bundle, cmd, options)
+    returncode, run_end, recent, log_path, failed_step = run_pipeline(
+        bundle, cmd, options, pace=not TERM.plain and not args.brisk
+    )
     elapsed = time.monotonic() - started
     if returncode == 0 and run_end and run_end.get("status") == "ok":
         save_answers(options)
@@ -824,6 +840,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--no-system-install", action="store_true", help="Do not offer package-manager installs for system tools")
     parser.add_argument("--plain", action="store_true", help="No color, art, or animation")
     parser.add_argument("--no-splash", action="store_true", help="Skip the splash screen")
+    parser.add_argument(
+        "--brisk", action="store_true",
+        help="Skip the theatrical step pacing (each step normally lingers ~1s so its message is readable)",
+    )
     parser.add_argument("--export", help="Brightspace export ZIP or unpacked folder")
     parser.add_argument("--label", help="Optional output label")
     parser.add_argument("--course-title", help="Course title for the blueprint front matter")
