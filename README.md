@@ -60,8 +60,8 @@ curl -fsSL https://raw.githubusercontent.com/timebeing92/brightspace-blueprint-r
 
 Clones both repos into `./blueprint-wizard/` and starts the wizard;
 re-running it later updates both repos. Choose this if you live in the
-terminal and want the fastest zero-to-wizard path. Requires git and repo
-access — while the repos are private this path is collaborators-only.
+terminal and want the fastest zero-to-wizard path. Requires git — both
+repos are public, so this works for anyone.
 
 Maintainers cut the release zip with `python3 scripts/make_release_bundle.py`
 (assembles both repos from git HEAD into `dist/blueprint-wizard-vX.Y.zip`,
