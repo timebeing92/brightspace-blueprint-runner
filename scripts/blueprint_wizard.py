@@ -34,7 +34,7 @@ REQUIRED_MODULES = [
     ("pdf2image", "pdf2image"),
     ("jsonschema", "jsonschema"),
 ]
-VERSION = "2.0"
+VERSION = "2.1"
 
 FLAVOR = {
     "Inventory export files": "The wizard surveys the archive…",
@@ -96,6 +96,13 @@ def human_size(num_bytes: int) -> str:
             return f"{size:.0f} {unit}" if unit == "B" else f"{size:.1f} {unit}"
         size /= 1024
     return f"{size:.1f} GB"
+
+
+def format_duration(seconds: float) -> str:
+    if seconds < 60:
+        return f"{seconds:.0f}s"
+    minutes, secs = divmod(int(round(seconds)), 60)
+    return f"{minutes}m {secs:02d}s"
 
 
 # --------------------------------------------------------------------------- #
@@ -363,6 +370,10 @@ def prompt_export(args: argparse.Namespace) -> Path:
         return export
     if args.yes:
         raise SystemExit("--yes needs --export <path> to run non-interactively.")
+    return pick_export_interactive()
+
+
+def pick_export_interactive() -> Path:
     print(ui.heading(TERM, "The export"))
     print(TERM.dim("  Drag the Brightspace export ZIP (or unpacked folder) into this window,"))
     print(TERM.dim("  then press Return."))
@@ -486,9 +497,9 @@ def options_rows(export: Path, options: dict) -> list[tuple[str, str]]:
     ]
 
 
-def review_options(args: argparse.Namespace, export: Path, options: dict) -> dict:
+def review_options(args: argparse.Namespace, export: Path, options: dict) -> tuple[Path, dict]:
     if args.yes:
-        return options
+        return export, options
     while True:
         print()
         print(ui.card(TERM, "Ready to draft", options_rows(export, options)))
@@ -498,11 +509,14 @@ def review_options(args: argparse.Namespace, export: Path, options: dict) -> dic
             ).strip()
         except EOFError:
             print("")
-            return options
+            return export, options
         if not reply:
-            return options
+            return export, options
         if reply == "1":
-            print(TERM.dim("    Restart the wizard to choose a different export."))
+            old_derived = safe_label(export.stem if export.is_file() else export.name)
+            export = pick_export_interactive()
+            if options["label"] == old_derived:
+                options["label"] = safe_label(export.stem if export.is_file() else export.name)
         elif reply == "2":
             options["course_title"] = ui.prompt_text(TERM, "Course title", default=options["course_title"])
         elif reply == "3":
@@ -525,7 +539,7 @@ def review_options(args: argparse.Namespace, export: Path, options: dict) -> dic
         elif reply == "8":
             options["render_qa"] = ui.confirm(TERM, "Run DOCX visual render QA?", default=options["render_qa"])
         else:
-            print(TERM.dim("    Enter 2-8, or Return to run."))
+            print(TERM.dim("    Enter 1-8, or Return to run."))
 
 
 # --------------------------------------------------------------------------- #
@@ -567,9 +581,10 @@ def open_log(label: str) -> tuple[Path, "object"]:
     return path, path.open("w", encoding="utf-8")
 
 
-def run_pipeline(bundle: Path, cmd: list[str], options: dict) -> tuple[int, dict | None, list[str], Path]:
+def run_pipeline(bundle: Path, cmd: list[str], options: dict) -> tuple[int, dict | None, list[str], Path, str | None]:
     """Run the pipeline, rendering progress events live. Returns
-    (exit code, run_end event or None, recent output lines, log path)."""
+    (exit code, run_end event or None, recent output lines, log path,
+    name of the step that failed or None)."""
     log_path, log_file = open_log(options["label"])
     log_file.write("$ " + command_text(cmd) + "\n")
 
@@ -577,6 +592,8 @@ def run_pipeline(bundle: Path, cmd: list[str], options: dict) -> tuple[int, dict
     board: ui.StepBoard | None = None
     run_end: dict | None = None
     recent: list[str] = []
+    steps: list[str] = []
+    failed_step: str | None = None
 
     proc = subprocess.Popen(
         cmd, cwd=str(bundle), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -625,22 +642,34 @@ def run_pipeline(bundle: Path, cmd: list[str], options: dict) -> tuple[int, dict
                 continue
             event = payload["event"]
             if event == "run_start":
-                board = ui.StepBoard(TERM, payload["steps"], flavor=FLAVOR)
+                steps = payload["steps"]
+                board = ui.StepBoard(TERM, steps, flavor=FLAVOR)
             elif event == "step_start" and board:
                 board.step_start(payload["index"])
             elif event == "step_end" and board:
-                board.step_end(payload["index"], payload["status"], payload.get("seconds", 0.0))
+                index = payload["index"]
+                if payload["status"] != "ok" and 0 < index <= len(steps):
+                    failed_step = steps[index - 1]
+                board.step_end(index, payload["status"], payload.get("seconds", 0.0))
                 if payload.get("message"):
                     recent.extend(payload["message"].splitlines())
             elif event == "run_end":
                 run_end = payload
         returncode = proc.wait()
+    except KeyboardInterrupt:
+        proc.terminate()
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+        log_file.write("\n[canceled by user]\n")
+        raise
     finally:
         log_file.close()
         TERM.show_cursor()
     if board:
         board.finish()
-    return returncode, run_end, recent, log_path
+    return returncode, run_end, recent, log_path, failed_step
 
 
 # --------------------------------------------------------------------------- #
@@ -655,12 +684,13 @@ def _output_row(label: str, path_text: str | None) -> tuple[str, str] | None:
     return (label, f"{path.name}  {TERM.dim(human_size(path.stat().st_size))}")
 
 
-def show_results(run_end: dict, log_path: Path, args: argparse.Namespace) -> None:
+def show_results(run_end: dict, log_path: Path, args: argparse.Namespace, elapsed: float) -> None:
     outputs = run_end.get("outputs", {})
     summary = run_end.get("summary", {})
     bundle_dir = Path(run_end.get("bundle_dir", ""))
 
     rows: list[tuple[str, str]] = []
+    rows.append(("Drafted in", format_duration(elapsed)))
     weeks = summary.get("weeks")
     if weeks is not None:
         rows.append(("Weeks", str(weeks)))
@@ -709,16 +739,41 @@ def show_results(run_end: dict, log_path: Path, args: argparse.Namespace) -> Non
             subprocess.run(["xdg-open", str(bundle_dir)], check=False)
 
 
-def show_failure(returncode: int, recent: list[str], log_path: Path) -> None:
-    rows: list[tuple[str, str]] = [("Exit code", str(returncode)), ("", "")]
-    detail = [part for entry in recent for part in entry.splitlines() if part.strip()]
+def show_failure(
+    returncode: int,
+    recent: list[str],
+    log_path: Path,
+    failed_step: str | None,
+    args: argparse.Namespace,
+) -> None:
+    rows: list[tuple[str, str]] = []
+    if failed_step:
+        rows.append(("Failed step", TERM.bold(failed_step)))
+    rows.append(("Exit code", str(returncode)))
+    rows.append(("", ""))
+    # The failing step's message reaches us twice (step_end event + the
+    # pipeline's own exit output), so dedupe for display.
+    detail: list[str] = []
+    seen: set[str] = set()
+    for entry in recent:
+        for part in entry.splitlines():
+            part = part.strip()
+            if part and part not in seen:
+                seen.add(part)
+                detail.append(part)
     for line in detail[-10:]:
-        rows.append(("", TERM.dim(line.strip())))
+        rows.append(("", TERM.dim(line)))
     rows.append(("", ""))
     rows.append(("Full log", str(log_path)))
     print()
     print(ui.card(TERM, TERM.bad("The drafting failed"), rows))
     print(TERM.dim("  Fix the issue above and rerun; the wizard remembers your answers."))
+    print(TERM.dim("  If the setup itself looks broken, try: bash blueprint_wizard.sh --doctor --fix"))
+    if args.yes or TERM.plain:
+        return
+    opener = "open" if sys.platform == "darwin" else shutil.which("xdg-open")
+    if opener and log_path.exists() and ui.confirm(TERM, "Open the full run log?", default=False):
+        subprocess.run([opener, str(log_path)], check=False)
 
 
 # --------------------------------------------------------------------------- #
@@ -736,7 +791,7 @@ def run_wizard(args: argparse.Namespace) -> int:
     export = prompt_export(args)
     peek = peek_export(export)
     options = gather_options(args, export, peek)
-    options = review_options(args, export, options)
+    export, options = review_options(args, export, options)
     if options["render_qa"]:
         ensure_render_tools(fix=True, assume_yes=args.yes, no_system_install=args.no_system_install)
 
@@ -747,17 +802,20 @@ def run_wizard(args: argparse.Namespace) -> int:
         print("  Canceled.")
         return 2
 
-    returncode, run_end, recent, log_path = run_pipeline(bundle, cmd, options)
+    started = time.monotonic()
+    returncode, run_end, recent, log_path, failed_step = run_pipeline(bundle, cmd, options)
+    elapsed = time.monotonic() - started
     if returncode == 0 and run_end and run_end.get("status") == "ok":
         save_answers(options)
-        show_results(run_end, log_path, args)
+        show_results(run_end, log_path, args, elapsed)
         return 0
-    show_failure(returncode, recent, log_path)
+    show_failure(returncode, recent, log_path, failed_step, args)
     return returncode or 1
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--version", action="version", version=f"blueprint-wizard v{VERSION}")
     parser.add_argument("--bundle-dir", type=Path, default=default_bundle_dir(), help="Path to brightspace-blueprint-bundle")
     parser.add_argument("--doctor", action="store_true", help="Check setup without running an export")
     parser.add_argument("--fix", action="store_true", help="With --doctor, offer to install missing bundle dependencies")
@@ -789,14 +847,19 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv or sys.argv[1:])
     TERM = ui.Term(plain=args.plain)
     bundle = args.bundle_dir.expanduser().resolve()
-    if args.doctor:
-        validate_bundle(bundle)
-        if args.fix:
-            ensure_venv(bundle, fix=True, assume_yes=args.yes)
-            ensure_requirements(bundle, fix=True, assume_yes=args.yes)
-            ensure_render_tools(fix=True, assume_yes=args.yes, no_system_install=args.no_system_install)
-        return print_doctor(bundle)
-    return run_wizard(args)
+    try:
+        if args.doctor:
+            validate_bundle(bundle)
+            if args.fix:
+                ensure_venv(bundle, fix=True, assume_yes=args.yes)
+                ensure_requirements(bundle, fix=True, assume_yes=args.yes)
+                ensure_render_tools(fix=True, assume_yes=args.yes, no_system_install=args.no_system_install)
+            return print_doctor(bundle)
+        return run_wizard(args)
+    except KeyboardInterrupt:
+        TERM.show_cursor()
+        print("\n  Canceled. Any partial run log is under logs/.")
+        return 130
 
 
 if __name__ == "__main__":

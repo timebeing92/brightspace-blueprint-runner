@@ -9,11 +9,19 @@ wizard wraps its CLI and consumes its progress-event contract
 
 ## Quickstart
 
-From this folder:
+- **macOS** — double-click `Blueprint Wizard.command`, or from this folder:
 
-```bash
-bash blueprint_wizard.sh
-```
+  ```bash
+  bash blueprint_wizard.sh
+  ```
+
+- **Windows** — double-click `Blueprint Wizard.bat`, or from PowerShell:
+
+  ```powershell
+  powershell -NoProfile -ExecutionPolicy Bypass -File blueprint_wizard.ps1
+  ```
+
+- **Linux** — `bash blueprint_wizard.sh`.
 
 The wizard walks through:
 
@@ -27,15 +35,19 @@ The wizard walks through:
    size before you commit to it.
 4. **The commission** — course title/number/term (these fill the blueprint
    front matter; blank fields stay `Needs review`), output label, DOCX/QA
-   toggles — then one summary card you can edit by number before running.
+   toggles — then one summary card you can edit by number before running
+   (including swapping the export itself).
 5. **The drafting** — live per-step progress with elapsed times, driven by
    the bundle's `--progress-events` NDJSON stream; raw step output scrolls
    dimmed beneath.
-6. **Results** — weeks, QA break/warning/note counts, `Needs review` count,
-   the generated files with sizes, and offers to open the folder or DOCX.
+6. **Results** — total drafting time, weeks, QA break/warning/note counts,
+   `Needs review` count, the generated files with sizes, and offers to open
+   the folder or DOCX. If a step fails instead, the failure card names the
+   failed step, shows the last output lines, and offers to open the full log.
 
 Answers are remembered in `.last_run.json` (git-ignored) and offered as
-defaults next time. Every run writes a full log under `logs/`.
+defaults next time. Every run writes a full log under `logs/`. Ctrl-C
+cancels cleanly at any point; the partial run log is kept.
 
 ## Non-Interactive Use
 
@@ -66,7 +78,10 @@ bash blueprint_wizard.sh --doctor --fix    # check and offer to fix
 
 ```text
 brightspace-blueprint-runner/
-├── blueprint_wizard.sh      <- launcher: finds/offers Python 3.11+, then execs the wizard
+├── Blueprint Wizard.command <- macOS double-click launcher (opens Terminal)
+├── Blueprint Wizard.bat     <- Windows double-click launcher (runs the .ps1)
+├── blueprint_wizard.sh      <- macOS/Linux launcher: finds/offers Python 3.11+, execs the wizard
+├── blueprint_wizard.ps1     <- Windows launcher: same job in PowerShell (winget install offer)
 └── scripts/
     ├── blueprint_wizard.py  <- the blueprint-specific flow
     ├── ui.py                <- reusable ANSI components (terminal caps, cards, step board)
@@ -84,6 +99,6 @@ render-stack decision record in the workbench `DEVELOPMENT_ROADMAP.md`.
 - LibreOffice/`soffice` and Poppler are only required for DOCX visual render QA.
 - Default bundle location: `../brightspace-blueprint-bundle` (override with
   `--bundle-dir`).
-- macOS/Linux shell use. Windows users can run the bundle's `bootstrap.ps1`
-  and direct Python command from the bundle README (a native launcher is on
-  the backlog).
+- On Windows, the PowerShell launcher prefers the `py` launcher, filters out
+  the Microsoft Store `python` alias, and offers a winget install of Python
+  when none is found.

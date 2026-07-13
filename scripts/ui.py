@@ -95,6 +95,33 @@ def visible_len(text: str) -> int:
     return length
 
 
+def clip(text: str, width: int) -> str:
+    """Truncate to a visible width, keeping ANSI escapes intact.
+
+    In-place redraws count lines, so a line that soft-wraps corrupts the
+    display; clipped output gets an ellipsis and a style reset.
+    """
+    if width <= 0 or visible_len(text) <= width:
+        return text
+    out: list[str] = []
+    length, in_escape, styled = 0, False, False
+    for char in text:
+        if in_escape:
+            out.append(char)
+            if char.isalpha():
+                in_escape = False
+        elif char == "\x1b":
+            out.append(char)
+            in_escape = True
+            styled = True
+        else:
+            if length >= width - 1:
+                break
+            out.append(char)
+            length += 1
+    return "".join(out) + "…" + ("\x1b[0m" if styled else "")
+
+
 # ---------------------------------------------------------------------------
 # Static components
 # ---------------------------------------------------------------------------
@@ -292,6 +319,8 @@ class StepBoard:
             width = term.width - 6
             for raw in self.tail:
                 lines.append(term.dim("  ┆ " + raw[:width]))
+        limit = max(20, term.width - 2)
+        lines = [clip(line, limit) for line in lines]
         sys.stdout.write("\n".join(lines) + "\n")
         sys.stdout.flush()
         self._drawn_lines = len(lines)
