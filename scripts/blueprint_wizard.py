@@ -429,13 +429,15 @@ def pick_export_interactive(*, revisit: bool = False) -> Path:
         if peek["modules"] is not None:
             rows.append(("Modules", str(peek["modules"])))
             titles = peek.get("module_titles") or []
-            if titles:
-                shown = " · ".join(titles[:3])
-                if len(shown) > 56:
-                    shown = shown[:55] + "…"
-                if len(titles) > 3:
-                    shown += f" · +{len(titles) - 3} more"
-                rows.append(("", TERM.dim(shown)))
+            # One module per line, deep enough to get past the boilerplate
+            # openers (Welcome / Getting Started / Syllabus) into the weeks.
+            limit = len(titles) if len(titles) <= 9 else 8
+            for title in titles[:limit]:
+                if len(title) > 52:
+                    title = title[:51] + "…"
+                rows.append(("", TERM.dim(f"  · {title}")))
+            if len(titles) > limit:
+                rows.append(("", TERM.dim(f"    … +{len(titles) - limit} more")))
         rows.append(("Files", f"{peek['files']}  ·  {human_size(peek['size'])}"))
         if not peek["has_manifest"]:
             rows.append(("", TERM.warn("No imsmanifest.xml found — this may not be a Brightspace export.")))

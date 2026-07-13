@@ -74,8 +74,8 @@ The wizard walks through:
    missing is offered as an install, with a permission prompt first. (Phase
    headings carry a dim `· 1 of 4 ·` marker so you always know where you are.)
 3. **The export** — drag the export ZIP/folder into the terminal. The wizard
-   peeks inside and shows the course title, module count, the first few
-   module names, file count, and size before you commit to it.
+   peeks inside and shows the course title, module count, the module list
+   (first eight, one per line), file count, and size before you commit to it.
 4. **The commission** — course title/number/term (these fill the blueprint
    front matter; blank fields stay `Needs review`), the output name (labels
    the results folder and files, e.g. `name__blueprint.docx`), DOCX/QA
