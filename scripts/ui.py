@@ -310,9 +310,11 @@ class StepBoard:
                 flavor = self.flavor.get(label)
                 if flavor:
                     twinkle = SPARKLE[(self._spin // 2) % len(SPARKLE)]
+                    lines.append("")
                     lines.append(
-                        "      " + term.dim(term.italic(flavor)) + "  " + term.accent(twinkle)
+                        "        " + term.dim(term.italic(flavor)) + "  " + term.accent(twinkle)
                     )
+                    lines.append("")
             elif state == "ok":
                 lines.append(f"  {term.good('✓')} {label}  {term.dim(f'{self.seconds[index]:5.1f}s')}")
             elif state == "bad":

@@ -76,7 +76,8 @@ The wizard walks through:
    peeks inside and shows the course title, module count, file count, and
    size before you commit to it.
 4. **The commission** — course title/number/term (these fill the blueprint
-   front matter; blank fields stay `Needs review`), output label, DOCX/QA
+   front matter; blank fields stay `Needs review`), the output name (labels
+   the results folder and files, e.g. `name__blueprint.docx`), DOCX/QA
    toggles — then one summary card you can edit by number before running
    (including swapping the export itself).
 5. **The drafting** — live per-step progress with elapsed times, driven by

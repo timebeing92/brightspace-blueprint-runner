@@ -38,8 +38,8 @@ VERSION = "2.2"
 
 # Minimum on-screen time per step in interactive runs, so the flavor line and
 # its animation register before the step flips to done. The pipeline itself is
-# not slowed — only the display. Eight steps add at most ~6 seconds.
-MIN_STEP_SECONDS = 0.8
+# not slowed — only the display. Eight steps add at most ~9 seconds.
+MIN_STEP_SECONDS = 1.1
 
 FLAVOR = {
     "Inventory export files": "The wizard surveys the archive…",
@@ -461,9 +461,9 @@ def gather_options(args: argparse.Namespace, export: Path, peek: dict) -> dict:
         options["course_title"] = ui.prompt_text(TERM, "Course title", default=options["course_title"])
         options["course_number"] = ui.prompt_text(TERM, "Course number (e.g. ABC 123)", default=options["course_number"])
         options["term"] = ui.prompt_text(TERM, "Term (e.g. Fall 2026)", default=options["term"])
-        options["label"] = ui.prompt_text(
-            TERM, "Output label", default=options["label"] or derived_label
-        )
+        suggested = options["label"] or derived_label
+        print(TERM.dim(f"  The output name labels the results folder and files — e.g. {suggested}__blueprint.docx"))
+        options["label"] = ui.prompt_text(TERM, "Output name", default=suggested)
         options["render_docx"] = ui.confirm(TERM, "Render the DOCX review document?", default=options["render_docx"])
         if options["render_docx"]:
             options["layout"] = ui.choose(
@@ -494,7 +494,8 @@ def options_rows(export: Path, options: dict) -> list[tuple[str, str]]:
         ("2. Course title", options["course_title"] or TERM.dim("(blank — Needs review)")),
         ("3. Course number", options["course_number"] or TERM.dim("(blank)")),
         ("4. Term", options["term"] or TERM.dim("(blank)")),
-        ("5. Output label", options["label"]),
+        ("5. Output name", options["label"]
+         + TERM.dim(f"  → {options['label']}__blueprint_bundle/")),
         ("6. DOCX output", yes_no(options["render_docx"])
          + (f"  ·  layout: {options['layout']}" if options["render_docx"] else "")),
         ("7. QA report", yes_no(options["run_qa"])
@@ -530,7 +531,8 @@ def review_options(args: argparse.Namespace, export: Path, options: dict) -> tup
         elif reply == "4":
             options["term"] = ui.prompt_text(TERM, "Term", default=options["term"])
         elif reply == "5":
-            options["label"] = safe_label(ui.prompt_text(TERM, "Output label", default=options["label"]))
+            print(TERM.dim("    The output name labels the results folder and files."))
+            options["label"] = safe_label(ui.prompt_text(TERM, "Output name", default=options["label"]))
         elif reply == "6":
             options["render_docx"] = ui.confirm(TERM, "Render the DOCX review document?", default=options["render_docx"])
             if options["render_docx"]:
