@@ -44,6 +44,7 @@ FLAVOR = {
     "Run QA report": "Casting detection spells…",
     "Assemble blueprint model and Markdown": "Inscribing the blueprint…",
     "Render DOCX": "Binding the review tome…",
+    "Check DOCX structure": "Testing the tome's binding…",
     "DOCX visual render check": "Holding pages up to the light…",
 }
 

@@ -140,7 +140,10 @@ render-stack decision record in the workbench `DEVELOPMENT_ROADMAP.md`.
 
 - Python package installs happen inside the bundle's `.venv`.
 - System tools are installed only after an explicit prompt.
-- LibreOffice/`soffice` and Poppler are only required for DOCX visual render QA.
+- LibreOffice/`soffice` and Poppler are only required for the optional DOCX
+  *visual* render QA. A pure-Python structural check of the DOCX
+  (relationships, hyperlinks, tables, titles) runs automatically with no
+  extra installs.
 - Default bundle location: `../brightspace-blueprint-bundle` (override with
   `--bundle-dir`).
 - On Windows, the PowerShell launcher prefers the `py` launcher, filters out
