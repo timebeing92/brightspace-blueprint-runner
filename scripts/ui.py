@@ -141,7 +141,7 @@ def status_line(term: Term, status: str, label: str, detail: str = "") -> str:
     elif status == "bad":
         mark = term.bad(mark)
     elif status == "run":
-        mark = term.accent(mark)
+        mark = term.bold(mark)
     text = f"  {mark} {label}"
     if detail:
         text += "  " + term.dim(detail)
@@ -152,8 +152,10 @@ def rule(term: Term, width: int | None = None) -> str:
     return term.dim(("─" if not term.plain else "-") * (width or min(term.width, 72)))
 
 
-def heading(term: Term, text: str) -> str:
-    return "\n" + term.accent(term.bold(text)) + "\n" + rule(term)
+def heading(term: Term, text: str, note: str = "") -> str:
+    """Section heading; `note` renders as a dim positional marker (e.g. '2 of 4')."""
+    suffix = "  " + term.dim(f"· {note} ·") if note else ""
+    return "\n" + term.accent(term.bold(text)) + suffix + "\n" + rule(term)
 
 
 def card(term: Term, title: str, rows: list[tuple[str, str]], *, min_width: int = 44) -> str:
@@ -303,7 +305,9 @@ class StepBoard:
         for index, label in enumerate(self.steps):
             state = self.state[index]
             if state == "run":
-                mark = term.accent(SPINNER[self._spin % len(SPINNER)])
+                # Accent (cyan) is reserved for prompts — the wizard asking for
+                # input — so the working spinner and sparkle stay neutral.
+                mark = term.bold(SPINNER[self._spin % len(SPINNER)])
                 elapsed = time.monotonic() - self.started
                 suffix = term.dim(f"{elapsed:5.1f}s")
                 lines.append(f"  {mark} {term.bold(label)}  {suffix}")
@@ -312,7 +316,7 @@ class StepBoard:
                     twinkle = SPARKLE[(self._spin // 2) % len(SPARKLE)]
                     lines.append("")
                     lines.append(
-                        "        " + term.dim(term.italic(flavor)) + "  " + term.accent(twinkle)
+                        "        " + term.dim(term.italic(flavor)) + "  " + term.dim(twinkle)
                     )
                     lines.append("")
             elif state == "ok":

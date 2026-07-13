@@ -69,12 +69,13 @@ The wizard walks through:
 
 1. **Splash** — a pixel-art wizard drafts the blueprint (any key skips;
    auto-skipped when piped, with `--plain`/`--no-splash`, or under `NO_COLOR`).
-2. **Preparation** — checklist of Python 3.11+, the bundle `.venv`, Python
+2. **The workshop** — checklist of Python 3.11+, the bundle `.venv`, Python
    packages, and the optional LibreOffice/Poppler render tools. Anything
-   missing is offered as an install, with a permission prompt first.
+   missing is offered as an install, with a permission prompt first. (Phase
+   headings carry a dim `· 1 of 4 ·` marker so you always know where you are.)
 3. **The export** — drag the export ZIP/folder into the terminal. The wizard
-   peeks inside and shows the course title, module count, file count, and
-   size before you commit to it.
+   peeks inside and shows the course title, module count, the first few
+   module names, file count, and size before you commit to it.
 4. **The commission** — course title/number/term (these fill the blueprint
    front matter; blank fields stay `Needs review`), the output name (labels
    the results folder and files, e.g. `name__blueprint.docx`), DOCX/QA
@@ -86,10 +87,12 @@ The wizard walks through:
    flavor line and a twinkling star) so the story is followable even though
    the pipeline itself runs in a couple of seconds — `--brisk` skips the
    theatrics.
-6. **Results** — total drafting time, weeks, QA break/warning/note counts,
-   `Needs review` count, the generated files with sizes, and offers to open
-   the folder or DOCX. If a step fails instead, the failure card names the
-   failed step, shows the last output lines, and offers to open the full log.
+6. **Results** — a completion chime and "✦ The drafting is complete.", then
+   the results card: total drafting time, weeks, QA break/warning/note
+   counts, `Needs review` count, and the generated files with the main
+   deliverable marked `← start here`; offers to open the folder or DOCX.
+   If a step fails instead, the failure card names the failed step, shows
+   the last output lines, and offers to open the full log.
 
 Answers are remembered in `.last_run.json` (git-ignored) and offered as
 defaults next time. Every run writes a full log under `logs/`. Ctrl-C

@@ -34,7 +34,7 @@ REQUIRED_MODULES = [
     ("pdf2image", "pdf2image"),
     ("jsonschema", "jsonschema"),
 ]
-VERSION = "2.2"
+VERSION = "2.3"
 
 # Minimum on-screen time per step in interactive runs, so the flavor line and
 # its animation register before the step flips to done. The pipeline itself is
@@ -54,6 +54,17 @@ FLAVOR = {
 }
 
 TERM = ui.Term(plain=True)  # replaced in main() once flags are parsed
+
+# Journey position shown beside phase headings ("2 of 4"); configured by
+# run_wizard, disabled for --yes runs where the phases fly by anyway.
+PHASE = {"current": 0, "total": 0, "enabled": False}
+
+
+def phase_heading(text: str) -> str:
+    if not PHASE["enabled"]:
+        return ui.heading(TERM, text)
+    PHASE["current"] += 1
+    return ui.heading(TERM, text, note=f"{PHASE['current']} of {PHASE['total']}")
 
 
 def runner_root() -> Path:
@@ -261,7 +272,8 @@ def ensure_render_tools(*, fix: bool, assume_yes: bool, no_system_install: bool)
 
 def preparation_checks(bundle: Path, args: argparse.Namespace) -> None:
     """Doctor checks rendered as a checklist; fixes offered inline."""
-    print(ui.heading(TERM, "Preparation"))
+    print(phase_heading("The workshop"))
+    print(TERM.dim("  The wizard checks the tools before drafting."))
     validate_bundle(bundle)
     print(ui.status_line(TERM, "ok", "Bundle", str(bundle)))
     if sys.version_info < MIN_PYTHON:
@@ -286,6 +298,7 @@ def preparation_checks(bundle: Path, args: argparse.Namespace) -> None:
 
 def print_doctor(bundle: Path) -> int:
     print(ui.heading(TERM, "Blueprint Runner doctor"))
+    print(TERM.dim("  The wizard inspects the workshop."))
     print(ui.status_line(TERM, "ok", "Runner", str(runner_root())))
     validate_bundle(bundle)
     print(ui.status_line(TERM, "ok", "Bundle", str(bundle)))
@@ -341,8 +354,11 @@ def _manifest_bytes(export: Path) -> tuple[bytes | None, int, int]:
 
 
 def peek_export(export: Path) -> dict:
-    """Cheap look inside the export: course title, module and file counts."""
-    info = {"title": "", "modules": None, "files": 0, "size": 0, "has_manifest": False}
+    """Cheap look inside the export: course title, module names, file counts."""
+    info = {
+        "title": "", "modules": None, "module_titles": [],
+        "files": 0, "size": 0, "has_manifest": False,
+    }
     try:
         data, file_count, size = _manifest_bytes(export)
         info["files"] = file_count
@@ -360,9 +376,18 @@ def peek_export(export: Path) -> dict:
             )
             if title_el is not None and title_el.text:
                 info["title"] = title_el.text.strip()
-            info["modules"] = sum(
-                1 for child in org if child.tag.split("}", 1)[-1] == "item"
-            )
+            module_titles = []
+            for child in org:
+                if child.tag.split("}", 1)[-1] != "item":
+                    continue
+                item_title = next(
+                    (c for c in child if c.tag.split("}", 1)[-1] == "title"), None
+                )
+                module_titles.append(
+                    (item_title.text or "").strip() if item_title is not None else ""
+                )
+            info["modules"] = len(module_titles)
+            info["module_titles"] = [t for t in module_titles if t]
     except (OSError, ET.ParseError, zipfile.BadZipFile, KeyError):
         pass
     return info
@@ -379,8 +404,10 @@ def prompt_export(args: argparse.Namespace) -> Path:
     return pick_export_interactive()
 
 
-def pick_export_interactive() -> Path:
-    print(ui.heading(TERM, "The export"))
+def pick_export_interactive(*, revisit: bool = False) -> Path:
+    # A revisit (changing the export from the review card) repeats the phase,
+    # so it keeps the plain heading rather than advancing the journey count.
+    print(ui.heading(TERM, "The export") if revisit else phase_heading("The export"))
     print(TERM.dim("  Drag the Brightspace export ZIP (or unpacked folder) into this window,"))
     print(TERM.dim("  then press Return."))
     while True:
@@ -401,6 +428,14 @@ def pick_export_interactive() -> Path:
             rows.append(("Course", TERM.bold(peek["title"])))
         if peek["modules"] is not None:
             rows.append(("Modules", str(peek["modules"])))
+            titles = peek.get("module_titles") or []
+            if titles:
+                shown = " · ".join(titles[:3])
+                if len(shown) > 56:
+                    shown = shown[:55] + "…"
+                if len(titles) > 3:
+                    shown += f" · +{len(titles) - 3} more"
+                rows.append(("", TERM.dim(shown)))
         rows.append(("Files", f"{peek['files']}  ·  {human_size(peek['size'])}"))
         if not peek["has_manifest"]:
             rows.append(("", TERM.warn("No imsmanifest.xml found — this may not be a Brightspace export.")))
@@ -429,6 +464,8 @@ def save_answers(options: dict) -> None:
 
 
 def gather_options(args: argparse.Namespace, export: Path, peek: dict) -> dict:
+    if not args.yes:
+        print(phase_heading("The commission"))
     last = {} if args.yes else load_last_answers()
     use_last = False
     if last and not args.yes:
@@ -456,7 +493,6 @@ def gather_options(args: argparse.Namespace, export: Path, peek: dict) -> dict:
     }
 
     if not args.yes and not use_last:
-        print(ui.heading(TERM, "The commission"))
         print(TERM.dim("  Blueprint front matter — Return keeps the suggestion; leave blank for 'Needs review'."))
         options["course_title"] = ui.prompt_text(TERM, "Course title", default=options["course_title"])
         options["course_number"] = ui.prompt_text(TERM, "Course number (e.g. ABC 123)", default=options["course_number"])
@@ -521,7 +557,7 @@ def review_options(args: argparse.Namespace, export: Path, options: dict) -> tup
             return export, options
         if reply == "1":
             old_derived = safe_label(export.stem if export.is_file() else export.name)
-            export = pick_export_interactive()
+            export = pick_export_interactive(revisit=True)
             if options["label"] == old_derived:
                 options["label"] = safe_label(export.stem if export.is_file() else export.name)
         elif reply == "2":
@@ -599,7 +635,7 @@ def run_pipeline(
     log_path, log_file = open_log(options["label"])
     log_file.write("$ " + command_text(cmd) + "\n")
 
-    print(ui.heading(TERM, "The drafting"))
+    print(phase_heading("The drafting"))
     board: ui.StepBoard | None = None
     run_end: dict | None = None
     recent: list[str] = []
@@ -692,13 +728,18 @@ def run_pipeline(
 # --------------------------------------------------------------------------- #
 # Results
 # --------------------------------------------------------------------------- #
-def _output_row(label: str, path_text: str | None) -> tuple[str, str] | None:
+def _output_row(label: str, path_text: str | None, emphasis: str = "normal") -> tuple[str, str] | None:
     if not path_text:
         return None
     path = Path(path_text)
     if not path.exists():
         return None
-    return (label, f"{path.name}  {TERM.dim(human_size(path.stat().st_size))}")
+    size = human_size(path.stat().st_size)
+    if emphasis == "primary":
+        return (TERM.bold(label), TERM.bold(path.name) + f"  {TERM.dim(size)}  " + TERM.good("← start here"))
+    if emphasis == "dim":
+        return (TERM.dim(label), TERM.dim(f"{path.name}  {size}"))
+    return (label, f"{path.name}  {TERM.dim(size)}")
 
 
 def show_results(run_end: dict, log_path: Path, args: argparse.Namespace, elapsed: float) -> None:
@@ -725,23 +766,24 @@ def show_results(run_end: dict, log_path: Path, args: argparse.Namespace, elapse
     if needs_review is not None:
         rows.append(("Needs review", f"{needs_review} field(s) to fill in during review"))
     rows.append(("", ""))
-    for label, key in (
-        ("Blueprint DOCX", "docx"),
-        ("Blueprint MD", "markdown"),
-        ("Model JSON", "json"),
-        ("Activities XLSX", "workbook"),
-        ("QA report", "qa_report"),
+    primary_key = "docx" if outputs.get("docx") and Path(outputs["docx"]).exists() else "markdown"
+    for label, key, quiet_row in (
+        ("Blueprint DOCX", "docx", False),
+        ("Blueprint MD", "markdown", False),
+        ("Model JSON", "json", True),
+        ("Activities XLSX", "workbook", False),
+        ("QA report", "qa_report", False),
     ):
-        row = _output_row(label, outputs.get(key))
+        emphasis = "primary" if key == primary_key else ("dim" if quiet_row else "normal")
+        row = _output_row(label, outputs.get(key), emphasis)
         if row:
             rows.append(row)
     rows.append(("", ""))
     rows.append(("Folder", str(bundle_dir)))
-    rows.append(("Run log", str(log_path)))
+    rows.append((TERM.dim("Run log"), TERM.dim(str(log_path))))
 
     print()
     print(ui.card(TERM, "The blueprint is drafted ✦", rows))
-    print(TERM.dim("  Start with the DOCX or Markdown blueprint, then check the QA report."))
 
     if args.yes or TERM.plain:
         return
@@ -764,6 +806,8 @@ def show_failure(
     args: argparse.Namespace,
 ) -> None:
     rows: list[tuple[str, str]] = []
+    rows.append(("", TERM.dim(TERM.italic("The spell fizzled — the scroll below tells why."))))
+    rows.append(("", ""))
     if failed_step:
         rows.append(("Failed step", TERM.bold(failed_step)))
     rows.append(("Exit code", str(returncode)))
@@ -798,6 +842,9 @@ def show_failure(
 # --------------------------------------------------------------------------- #
 def run_wizard(args: argparse.Namespace) -> int:
     bundle = args.bundle_dir.expanduser().resolve()
+    PHASE["enabled"] = not args.yes
+    PHASE["total"] = 4 - (1 if args.export else 0)
+    PHASE["current"] = 0
     if not args.no_splash and not args.yes:
         art.splash(TERM, animate=True, version=f"v{VERSION}")
     else:
@@ -820,11 +867,21 @@ def run_wizard(args: argparse.Namespace) -> int:
         return 2
 
     started = time.monotonic()
+    pace = not TERM.plain and not args.brisk
     returncode, run_end, recent, log_path, failed_step = run_pipeline(
-        bundle, cmd, options, pace=not TERM.plain and not args.brisk
+        bundle, cmd, options, pace=pace
     )
     elapsed = time.monotonic() - started
+    if not TERM.plain:
+        # A tap on the shoulder for anyone who tabbed away during a long run.
+        sys.stdout.write("\a")
+        sys.stdout.flush()
     if returncode == 0 and run_end and run_end.get("status") == "ok":
+        if not TERM.plain:
+            print()
+            print("  " + TERM.good("✦") + " The drafting is complete.")
+            if pace:
+                time.sleep(0.9)
         save_answers(options)
         show_results(run_end, log_path, args, elapsed)
         return 0
