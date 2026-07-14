@@ -17,8 +17,11 @@
 
       B L U E P R I N T   W I Z A R D
 ```
+Transmute a D2l/ Brightspace Export into a comprehensive, cleanly formatted
+course blueprint. Runs completley localy via a series of python scripts and
+libraries. **No AI whatsoever**. 
 
-A one-terminal wizard for the adjacent `brightspace-blueprint-bundle` project:
+A one-terminal wizard for the adjacent [brightspace-blueprint-bundle](https://github.com/timebeing92/brightspace-blueprint-bundle) project:
 it checks the machine, prepares the bundle's `.venv`, walks through the
 options, runs the blueprint pipeline with a live step display, and finishes
 with a results card. The pipeline itself lives entirely in the bundle — the
