@@ -29,7 +29,7 @@ wizard wraps its CLI and consumes its progress-event contract
 (`coursecraft.progress/1`); it never re-implements extraction logic.
 
 > [!NOTE]
-> There are three install options. If you would like to receive updates, or go beyond updates and test the tool and submit change requests or revisions, it is recommended that you choose install option two or three.
+> There are three install options. If you would like to receive updates, or go beyond updates and test the tool and submit change requests or revisions via github, it is recommended that you choose install option two or three.
 
 ## Install
 
