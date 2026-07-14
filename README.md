@@ -28,6 +28,14 @@ with a results card. The pipeline itself lives entirely in the bundle — the
 wizard wraps its CLI and consumes its progress-event contract
 (`coursecraft.progress/1`); it never re-implements extraction logic.
 
+> [!IMPORTANT]
+> Do not use GitHub's green **Code -> Download ZIP** button as the one-download
+> install. That source ZIP contains only this runner repo, not the companion
+> `brightspace-blueprint-bundle` pipeline repo, so the wizard will not run from
+> it by itself. For a single download, use the latest
+> `blueprint-wizard-vX.Y.zip` from the
+> [GitHub Releases page](https://github.com/timebeing92/brightspace-blueprint-runner/releases).
+
 > [!NOTE]
 > There are three install options. If you would like to receive updates, or go beyond updates and test the tool and submit change requests or revisions via github, it is recommended that you choose install option two or three.
 
