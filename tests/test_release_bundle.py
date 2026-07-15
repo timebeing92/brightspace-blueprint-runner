@@ -15,6 +15,12 @@ SPEC.loader.exec_module(release)
 
 
 class RunnerReleaseBundleTests(unittest.TestCase):
+    def test_remote_normalization_removes_credentials(self) -> None:
+        self.assertEqual(
+            release.normalized_remote("https://token@github.com/example/repo.git"),
+            "https://github.com/example/repo.git",
+        )
+
     def test_deterministic_zip_preserves_executable_mode(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

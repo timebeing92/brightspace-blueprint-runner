@@ -22,6 +22,7 @@ import tempfile
 import zipfile
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 RUNNER_ROOT = Path(__file__).resolve().parents[1]
 
@@ -98,6 +99,21 @@ def require_clean(repo: Path) -> None:
         raise RuntimeError(f"release repo is dirty: {repo}")
 
 
+def normalized_remote(value: str) -> str:
+    text = value.strip()
+    if text.startswith("git@") and ":" in text:
+        host_path = text.split("@", 1)[1]
+        host, path = host_path.split(":", 1)
+        return f"https://{host}/{path}"
+    if text.startswith(("http://", "https://")):
+        parts = urlsplit(text)
+        host = parts.hostname or parts.netloc
+        if parts.port:
+            host += f":{parts.port}"
+        return urlunsplit((parts.scheme, host, parts.path, parts.query, parts.fragment))
+    return text
+
+
 def resolve_commit(repo: Path, ref: str) -> str:
     return run_git(repo, "rev-parse", "--verify", f"{ref}^{{commit}}")
 
@@ -153,7 +169,9 @@ def release_manifest(
         "schema": "coursecraft.runner_release/1",
         "version": version,
         "runner": {
-            "repository": run_git(RUNNER_ROOT, "remote", "get-url", "origin"),
+            "repository": normalized_remote(
+                run_git(RUNNER_ROOT, "remote", "get-url", "origin")
+            ),
             "ref": runner_ref,
             "commit": runner_commit,
         },
@@ -211,7 +229,9 @@ def main() -> int:
     bundle_commit = resolve_commit(bundle_repo, args.bundle_ref)
 
     version = read_version(RUNNER_ROOT, runner_commit)
-    bundle_remote = run_git(bundle_repo, "remote", "get-url", "origin")
+    bundle_remote = normalized_remote(
+        run_git(bundle_repo, "remote", "get-url", "origin")
+    )
     release_name = f"blueprint-wizard-v{version}"
 
     output_dir = args.output_dir.expanduser().resolve()
