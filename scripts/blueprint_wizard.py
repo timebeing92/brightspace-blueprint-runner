@@ -46,6 +46,7 @@ FLAVOR = {
     "Probe manifest": "The wizard holds the scroll to the light…",
     "Reconstruct course structure": "Rebuilding the halls of the course…",
     "Extract course activities": "Gathering assignments and discussions…",
+    "Extract rubrics": "Reading rubric grids and scoring bands…",
     "Run QA report": "Casting detection spells…",
     "Assemble blueprint model and Markdown": "Inscribing the blueprint…",
     "Render DOCX": "Binding the review tome…",
@@ -763,6 +764,9 @@ def show_results(run_end: dict, log_path: Path, args: argparse.Namespace, elapse
     weeks = summary.get("weeks")
     if weeks is not None:
         rows.append(("Weeks", str(weeks)))
+    rubrics = summary.get("rubrics")
+    if rubrics:
+        rows.append(("Rubrics", str(rubrics)))
     qa = summary.get("qa")
     if qa:
         qa_text = f"{qa.get('breaks', 0)} breaks · {qa.get('warnings', 0)} warnings · {qa.get('notes', 0)} notes"
@@ -783,6 +787,8 @@ def show_results(run_end: dict, log_path: Path, args: argparse.Namespace, elapse
         ("Blueprint MD", "markdown", False),
         ("Model JSON", "json", True),
         ("Activities XLSX", "workbook", False),
+        ("Rubrics XLSX", "rubrics_workbook", False),
+        ("Rubrics JSON", "rubrics_json", True),
         ("QA report", "qa_report", False),
     ):
         emphasis = "primary" if key == primary_key else ("dim" if quiet_row else "normal")

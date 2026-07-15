@@ -115,14 +115,16 @@ The wizard walks through:
    (including swapping the export itself).
 5. **The drafting** — live per-step progress with elapsed times, driven by
    the bundle's `--progress-events` NDJSON stream; raw step output scrolls
-   dimmed beneath. Each step lingers on screen for a moment (with its
-   flavor line and a twinkling star) so the story is followable even though
-   the pipeline itself runs in a couple of seconds — `--brisk` skips the
-   theatrics.
+   dimmed beneath. Rubric extraction appears as its own step when the export
+   contains `rubrics_d2l.xml`. Each step lingers on screen for a moment (with
+   its flavor line and a twinkling star) so the story is followable even
+   though the pipeline itself runs in a couple of seconds — `--brisk` skips
+   the theatrics.
 6. **Results** — a completion chime and "✦ The drafting is complete.", then
    the results card: total drafting time, weeks, QA break/warning/note
-   counts, `Needs review` count, and the generated files with the main
-   deliverable marked `← start here`; offers to open the folder or DOCX.
+   counts, optional rubric count/artifacts, `Needs review` count, and the
+   generated files with the main deliverable marked `← start here`; offers
+   to open the folder or DOCX.
    If a step fails instead, the failure card names the failed step, shows
    the last output lines, and offers to open the full log.
 
@@ -180,6 +182,9 @@ render-stack decision record in the workbench `DEVELOPMENT_ROADMAP.md`.
 ## Notes
 
 - Python package installs happen inside the bundle's `.venv`.
+- Rubric steps and rubric result rows come from the bundle's
+  `coursecraft.progress/1` event stream; the runner does not parse D2L XML or
+  glob for rubric artifacts.
 - System tools are installed only after an explicit prompt.
 - LibreOffice/`soffice` and Poppler are only required for the optional DOCX
   *visual* render QA. A pure-Python structural check of the DOCX
