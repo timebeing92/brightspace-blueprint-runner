@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: runner
+      - uses: actions/checkout@v4
+        with:
+          repository: timebeing92/brightspace-blueprint-bundle
+          path: bundle
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: runner/requirements-dev.txt
+      - run: python -m pip install -r requirements-dev.txt
+        working-directory: runner
+      - run: python -m pytest -q
+        working-directory: runner
+      - name: Build explicit-ref release ZIP
+        run: |
+          bundle_sha=$(git -C ../bundle rev-parse HEAD)
+          python scripts/make_release_bundle.py \
+            --runner-ref "$GITHUB_SHA" \
+            --bundle-ref "$bundle_sha" \
+            --bundle-dir ../bundle
+          cd dist
+          sha256sum -c *.sha256
+        working-directory: runner

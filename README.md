@@ -77,9 +77,17 @@ re-running it later updates both repos. Choose this if you live in the
 terminal and want the fastest zero-to-wizard path. Requires git — both
 repos are public, so this works for anyone.
 
-Maintainers cut the release zip with `python3 scripts/make_release_bundle.py`
-(assembles both repos from git HEAD into `dist/blueprint-wizard-vX.Y.zip`,
-ready to attach to a GitHub release).
+Maintainers cut the release zip from explicit commits:
+
+```bash
+python3 scripts/make_release_bundle.py \
+  --runner-ref "$(git rev-parse HEAD)" \
+  --bundle-ref "$(git -C ../brightspace-blueprint-bundle rev-parse HEAD)"
+```
+
+The builder refuses dirty worktrees by default and writes
+`RELEASE_MANIFEST.json` inside the ZIP with both repository commits and the
+bundle contract hashes. A sibling `.sha256` file records the ZIP checksum.
 
 ## Run
 
