@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import tempfile
 import unittest
 import zipfile
@@ -41,16 +42,26 @@ class RunnerReleaseBundleTests(unittest.TestCase):
                 self.assertEqual((info.external_attr >> 16) & 0o777, 0o755)
 
     def test_schema_receipt_uses_bundle_contract_ids(self) -> None:
-        bundle = ROOT.parent / "brightspace-blueprint-bundle"
-        rows = release.schema_receipt(bundle)
-        self.assertEqual(
-            [row["schema"] for row in rows],
-            [
+        with tempfile.TemporaryDirectory() as tmp:
+            bundle = Path(tmp)
+            schemas = bundle / "schemas"
+            schemas.mkdir()
+            ids = [
                 "coursecraft.blueprint/4",
                 "coursecraft.rubrics/1",
                 "coursecraft.progress/1",
-            ],
-        )
+            ]
+            names = [
+                "blueprint_schema.json",
+                "rubrics_schema.json",
+                "progress_events_schema.json",
+            ]
+            for name, schema_id in zip(names, ids, strict=True):
+                (schemas / name).write_text(
+                    json.dumps({"$id": schema_id}), encoding="utf-8"
+                )
+            rows = release.schema_receipt(bundle)
+            self.assertEqual([row["schema"] for row in rows], ids)
 
 
 if __name__ == "__main__":
