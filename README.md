@@ -122,9 +122,9 @@ The wizard walks through:
    the theatrics.
 6. **Results** — a completion chime and "✦ The drafting is complete.", then
    the results card: total drafting time, weeks, QA break/warning/note
-   counts, optional rubric count/artifacts, `Needs review` count, and the
-   generated files with the main deliverable marked `← start here`; offers
-   to open the folder or DOCX.
+   counts, optional rubric count/artifacts including the rubric DOCX,
+   `Needs review` count, and the generated files with the main deliverable
+   marked `← start here`; offers to open the folder or DOCX.
    If a step fails instead, the failure card names the failed step, shows
    the last output lines, and offers to open the full log.
 
@@ -168,23 +168,36 @@ brightspace-blueprint-runner/
 ├── blueprint_wizard.sh      <- macOS/Linux launcher: finds/offers Python 3.11+, execs the wizard
 ├── blueprint_wizard.ps1     <- Windows launcher: same job in PowerShell (winget install offer)
 ├── install_blueprint_wizard.sh <- curl-able installer: clones both repos, starts the wizard
+├── requirements-dev.txt    <- pytest for the runner test suite
 └── scripts/
     ├── blueprint_wizard.py  <- the blueprint-specific flow
     ├── ui.py                <- reusable ANSI components (terminal caps, cards, step board)
     ├── art.py               <- splash scene + animation
     └── make_release_bundle.py <- maintainer tool: builds the release zip from both repos
+└── tests/                  <- contract tests for command construction, progress events, and results
 ```
 
 `ui.py` and `art.py` are deliberately free of blueprint knowledge so future
 runner wizards (and an eventual multi-tool launcher) can reuse them — see the
 render-stack decision record in the workbench `DEVELOPMENT_ROADMAP.md`.
 
+## Running Tests
+
+```bash
+python3 -m pip install -r requirements-dev.txt
+python3 -m pytest -q
+```
+
+The tests use a fake bundle process for progress-event coverage, so they do not
+need a Brightspace export or the sibling bundle checkout.
+
 ## Notes
 
 - Python package installs happen inside the bundle's `.venv`.
 - Rubric steps and rubric result rows come from the bundle's
   `coursecraft.progress/1` event stream; the runner does not parse D2L XML or
-  glob for rubric artifacts.
+  glob for rubric artifacts. When the bundle reports `outputs.rubrics_docx`,
+  the results card shows the standalone rubric review document.
 - System tools are installed only after an explicit prompt.
 - LibreOffice/`soffice` and Poppler are only required for the optional DOCX
   *visual* render QA. A pure-Python structural check of the DOCX

@@ -787,6 +787,7 @@ def show_results(run_end: dict, log_path: Path, args: argparse.Namespace, elapse
         ("Blueprint MD", "markdown", False),
         ("Model JSON", "json", True),
         ("Activities XLSX", "workbook", False),
+        ("Rubrics DOCX", "rubrics_docx", False),
         ("Rubrics XLSX", "rubrics_workbook", False),
         ("Rubrics JSON", "rubrics_json", True),
         ("QA report", "qa_report", False),
