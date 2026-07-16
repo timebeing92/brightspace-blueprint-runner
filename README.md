@@ -2,6 +2,9 @@
 
 Current version: **2.5.1**
 
+The v2.5.1 one-download ZIP includes bundle v1.1.1. Published asset SHA-256:
+`4cddb2ba5f07dae4e1621778a4a50e00004fb0fdd8cb9d62e91672123cf1b0d4`.
+
 ```text
          ▄                           ▄
        ▄            ▀                     ▄
