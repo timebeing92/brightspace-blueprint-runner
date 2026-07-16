@@ -47,6 +47,15 @@ class Term:
     def dim(self, text: str) -> str:
         return self._wrap("2", text)
 
+    def secondary(self, text: str) -> str:
+        """Readable secondary text using the terminal's normal foreground.
+
+        ANSI faint/dim intensity is highly terminal- and theme-dependent. Use
+        this for prompt affordances and active narration that are visually
+        secondary but still need to be read without effort.
+        """
+        return self._wrap("22", text)
+
     def italic(self, text: str) -> str:
         return self._wrap("3", text)
 
@@ -189,7 +198,7 @@ def card(term: Term, title: str, rows: list[tuple[str, str]], *, min_width: int 
 # Prompts
 # ---------------------------------------------------------------------------
 def prompt_text(term: Term, prompt: str, *, default: str = "") -> str:
-    suffix = term.dim(f" [{default}]") if default else ""
+    suffix = term.secondary(f" [{default}]") if default else ""
     try:
         reply = input(f"  {term.accent('?')} {prompt}{suffix}: ").strip()
     except EOFError:
@@ -200,11 +209,13 @@ def prompt_text(term: Term, prompt: str, *, default: str = "") -> str:
 
 def confirm(term: Term, prompt: str, *, default: bool = False, assume_yes: bool = False) -> bool:
     if assume_yes:
-        print(f"  {term.accent('?')} {prompt} {term.dim('yes (--yes)')}")
+        print(f"  {term.accent('?')} {prompt} {term.secondary('yes (--yes)')}")
         return True
     suffix = "[Y/n]" if default else "[y/N]"
     try:
-        reply = input(f"  {term.accent('?')} {prompt} {term.dim(suffix)} ").strip().lower()
+        reply = input(
+            f"  {term.accent('?')} {prompt} {term.secondary(suffix)} "
+        ).strip().lower()
     except EOFError:
         print("")
         return default
@@ -218,7 +229,7 @@ def choose(term: Term, prompt: str, options: list[tuple[str, str]], *, default: 
     print(f"  {term.accent('?')} {prompt}")
     keys = [key for key, _ in options]
     for index, (key, label) in enumerate(options, start=1):
-        marker = term.dim(" (default)") if key == default else ""
+        marker = term.secondary(" (default)") if key == default else ""
         print(f"      {term.bold(str(index))}. {label}{marker}")
     while True:
         try:
@@ -232,7 +243,7 @@ def choose(term: Term, prompt: str, options: list[tuple[str, str]], *, default: 
             return keys[int(reply) - 1]
         if reply in keys:
             return reply
-        print(term.dim(f"    enter 1-{len(options)}"))
+        print(term.secondary(f"    enter 1-{len(options)}"))
 
 
 # ---------------------------------------------------------------------------
@@ -316,7 +327,10 @@ class StepBoard:
                     twinkle = SPARKLE[(self._spin // 2) % len(SPARKLE)]
                     lines.append("")
                     lines.append(
-                        "        " + term.dim(term.italic(flavor)) + "  " + term.dim(twinkle)
+                        "        "
+                        + term.italic(term.secondary(flavor))
+                        + "  "
+                        + term.secondary(twinkle)
                     )
                     lines.append("")
             elif state == "ok":

@@ -1,9 +1,9 @@
 # Brightspace Blueprint Runner
 
-Current version: **2.5.2**
+Current version: **2.5.3**
 
-The v2.5.2 one-download ZIP includes bundle v1.1.1. Published asset SHA-256:
-`044ce9e4118df3e587c35f585d421a495e30b072bcbdc003971e1f587b9f950f`.
+The v2.5.3 one-download ZIP includes bundle v1.1.1. Its checksum is published
+beside the asset on the GitHub Releases page.
 
 ```text
          ▄                           ▄
@@ -46,6 +46,12 @@ one-part commands such as `python3` and two-part commands such as `py -3.12`.
 The curl installer now installs a generated, commit-verified runner/bundle
 pair and records the installed identities instead of pulling two unrelated
 moving branch heads.
+
+v2.5.3 improves terminal readability. Interactive choice/default cues such as
+`[y/N]`, `[Y/n]`, and `(default)`, along with the active-step narration such as
+“The wizard holds the scroll to the light…”, now use the terminal's normal
+foreground intensity instead of ANSI dim/faint styling. Decorative metadata
+and raw diagnostic output remain subdued.
 
 > [!IMPORTANT]
 > Do not use GitHub's green **Code -> Download ZIP** button as the one-download

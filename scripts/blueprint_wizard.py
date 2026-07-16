@@ -34,7 +34,7 @@ REQUIRED_MODULES = [
     ("pdf2image", "pdf2image"),
     ("jsonschema", "jsonschema"),
 ]
-VERSION = "2.5.2"
+VERSION = "2.5.3"
 
 # Minimum on-screen time per step in interactive runs, so the flavor line and
 # its animation register before the step flips to done. The pipeline itself is
