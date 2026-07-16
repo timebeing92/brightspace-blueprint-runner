@@ -1,9 +1,9 @@
 # Brightspace Blueprint Runner
 
-Current version: **2.6.0**
+Current version: **2.7.0**
 
-The v2.6.0 one-download ZIP includes bundle v1.2.0. Published asset SHA-256:
-`c6a997cbfc161b34b2ce4dedfea99332ca1244756c3a527cb97bced0d2d18ad8`.
+The v2.7.0 one-download ZIP includes bundle v1.2.0. Its checksum is published
+beside the asset on the GitHub Releases page.
 
 ```text
          ▄                           ▄
@@ -64,6 +64,14 @@ longer checks, prompts, or offers to install visual-render tools, and the
 commission no longer includes a visual-render question. The existing
 `--render-docx-check` flag remains available only as an explicit maintainer
 preview whose generated pages require human inspection.
+
+v2.7.0 adds a quiet release check for colleagues using the one-download ZIP.
+After ordinary setup succeeds, an interactive Wizard checks GitHub at most
+once per day and displays a clear card when a newer verified Wizard release is
+available. The check uses no account or token, never replaces local files, and
+cannot block blueprint generation when the network is offline. Users can open
+the release page from the card, force a check with `--check-for-updates`, or
+disable automatic checks with `--no-update-check`.
 
 > [!IMPORTANT]
 > Do not use GitHub's green **Code -> Download ZIP** button as the one-download
@@ -160,7 +168,8 @@ The wizard walks through:
    auto-skipped when piped, with `--plain`/`--no-splash`, or under `NO_COLOR`).
 2. **The workshop** — checklist of Python 3.11+, the bundle `.venv`, and the
    core Python packages. Anything missing is offered as an install, with a
-   permission prompt first. (Phase
+   permission prompt first. After setup succeeds, an interactive run performs
+   the cached, non-blocking update check unless it was disabled. (Phase
    headings carry a dim `· 1 of 4 ·` marker so you always know where you are.)
 3. **The export** — drag the export ZIP/folder into the terminal. The wizard
    peeks inside and shows the course title, module count, the module list
@@ -188,6 +197,31 @@ The wizard walks through:
 Answers are remembered in `.last_run.json` (git-ignored) and offered as
 defaults next time. Every run writes a full log under `logs/`. Ctrl-C
 cancels cleanly at any point; the partial run log is kept.
+
+## Update Checks
+
+Interactive runs check the public Blueprint Wizard GitHub release feed at most
+once every 24 hours, after the local Python environment and core packages are
+ready. If a newer release exists, the Wizard shows the installed and available
+versions and offers to open the verified release page. It does not download,
+delete, move, or overwrite the current installation.
+
+```bash
+bash blueprint_wizard.sh --check-for-updates  # force a check and exit
+bash blueprint_wizard.sh --no-update-check    # skip the automatic check
+```
+
+The result is cached in `.update_check.json` (git-ignored). GitHub, like any
+site contacted over the internet, receives the requesting IP address and
+request metadata. No GitHub account or access token is used. Network, timeout,
+rate-limit, malformed-response, and read-only-cache failures are non-fatal; an
+ordinary automatic check stays silent and the Wizard continues.
+
+For an installation created by `install_blueprint_wizard.sh`, rerunning that
+installer obtains the currently recorded verified runner/bundle pair. Release
+ZIP users should download and unzip the newer one-download ZIP from the release
+page. Automatic download, archival of the old folder, and restart-to-complete
+behavior are intentionally deferred to a separately reviewed update design.
 
 ## Non-Interactive Use
 
@@ -232,6 +266,7 @@ brightspace-blueprint-runner/
 ├── requirements-dev.txt    <- pytest for the runner test suite
 └── scripts/
     ├── blueprint_wizard.py  <- the blueprint-specific flow
+    ├── update_check.py      <- cached, non-blocking public release check
     ├── ui.py                <- reusable ANSI components (terminal caps, cards, step board)
     ├── art.py               <- splash scene + animation
     ├── make_release_bundle.py <- maintainer tool: builds the release zip from both repos
@@ -256,6 +291,8 @@ need a Brightspace export or the sibling bundle checkout.
 ## Notes
 
 - Python package installs happen inside the bundle's `.venv`.
+- Automatic update checks run only in interactive Wizard sessions, no more
+  than once daily. `--yes` automation does not gain an implicit network call.
 - Rubric steps and rubric result rows come from the bundle's
   `coursecraft.progress/1` event stream; the runner does not parse D2L XML or
   glob for rubric artifacts. When the bundle reports `outputs.rubrics_docx`,

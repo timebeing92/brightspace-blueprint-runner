@@ -47,6 +47,10 @@ Normal DOCX generation and structural QA do not need LibreOffice or Poppler.
 An advanced maintainer-only render preview remains available through the
 documented bundle CLI, but it is not part of normal setup.
 
+After setup, interactive runs check the public GitHub release feed at most once
+per day. The check needs no account, never replaces files, and is skipped with
+--no-update-check. Run with --check-for-updates to check immediately and exit.
+
 Folders:
   brightspace-blueprint-runner/   the wizard (what you launch)
   brightspace-blueprint-bundle/   the conversion pipeline the wizard drives

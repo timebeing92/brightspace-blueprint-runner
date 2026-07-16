@@ -19,11 +19,13 @@ import subprocess
 import sys
 import threading
 import time
+import webbrowser
 import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
 
 import art
+import update_check
 import ui
 
 MIN_PYTHON = (3, 11)
@@ -32,7 +34,7 @@ REQUIRED_MODULES = [
     ("docx", "python-docx"),
     ("jsonschema", "jsonschema"),
 ]
-VERSION = "2.6.0"
+VERSION = "2.7.0"
 
 # Minimum on-screen time per step in interactive runs, so the flavor line and
 # its animation register before the step flips to done. The pipeline itself is
@@ -76,6 +78,10 @@ def default_bundle_dir() -> Path:
 
 def state_path() -> Path:
     return runner_root() / ".last_run.json"
+
+
+def update_cache_path() -> Path:
+    return runner_root() / ".update_check.json"
 
 
 def safe_label(name: str) -> str:
@@ -248,6 +254,93 @@ def preparation_checks(bundle: Path, args: argparse.Namespace) -> None:
     if not ensure_requirements(bundle, fix=True, assume_yes=args.yes):
         raise SystemExit("Cannot continue without the required Python packages.")
     print(ui.status_line(TERM, "ok", "Python packages", "openpyxl, python-docx, jsonschema"))
+
+
+def report_update_check(*, force: bool, offer_open: bool) -> None:
+    """Report a newer published Wizard release without blocking normal use."""
+    cache_path = update_cache_path()
+    status = update_check.check_latest_release(
+        current_version=VERSION,
+        cache_path=cache_path,
+        force=force,
+    )
+    if status.state == "unavailable":
+        if force:
+            print()
+            print(
+                ui.card(
+                    TERM,
+                    "Update check unavailable",
+                    [
+                        ("Installed", f"v{VERSION}"),
+                        (
+                            "",
+                            "The latest release could not be confirmed. "
+                            "The installed Wizard is still usable.",
+                        ),
+                    ],
+                )
+            )
+        return
+
+    if not status.update_available:
+        if force:
+            title = (
+                "Blueprint Wizard is newer than the latest published release"
+                if status.state == "ahead"
+                else "Blueprint Wizard is up to date"
+            )
+            print()
+            print(
+                ui.card(
+                    TERM,
+                    title,
+                    [
+                        ("Installed", f"v{VERSION}"),
+                        ("Latest", f"v{status.latest_version}"),
+                    ],
+                )
+            )
+        return
+
+    if not force and not update_check.notice_is_due(
+        cache_path,
+        latest_version=status.latest_version,
+    ):
+        return
+
+    rows = [
+        ("Installed", f"v{VERSION}"),
+        ("Available", TERM.bold(f"v{status.latest_version}")),
+    ]
+    if status.release_name and status.release_name != status.latest_tag:
+        rows.append(("Release", status.release_name))
+    rows.extend(
+        [
+            ("Download", TERM.supporting(status.release_url)),
+            (
+                "",
+                "The current Wizard will keep working; no files were replaced.",
+            ),
+        ]
+    )
+    print()
+    print(ui.card(TERM, "Blueprint Wizard update available", rows))
+    update_check.mark_notified(
+        cache_path,
+        latest_version=status.latest_version,
+    )
+    if offer_open and ui.confirm(
+        TERM,
+        "Open the verified release page now?",
+        default=False,
+    ):
+        try:
+            opened = webbrowser.open(status.release_url)
+        except OSError:
+            opened = False
+        if not opened:
+            print(TERM.secondary(f"  Open this page: {status.release_url}"))
 
 
 def print_doctor(bundle: Path) -> int:
@@ -845,6 +938,13 @@ def run_wizard(args: argparse.Namespace) -> int:
         print(TERM.accent(TERM.bold("  Blueprint Wizard")) + TERM.dim(f"  v{VERSION}"))
 
     preparation_checks(bundle, args)
+    if (
+        not args.no_update_check
+        and not args.yes
+        and sys.stdin.isatty()
+        and sys.stdout.isatty()
+    ):
+        report_update_check(force=False, offer_open=True)
 
     export = prompt_export(args)
     peek = peek_export(export)
@@ -908,6 +1008,16 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--bundle-dir", type=Path, default=default_bundle_dir(), help="Path to brightspace-blueprint-bundle")
     parser.add_argument("--doctor", action="store_true", help="Check setup without running an export")
     parser.add_argument("--fix", action="store_true", help="With --doctor, offer to install missing bundle dependencies")
+    parser.add_argument(
+        "--check-for-updates",
+        action="store_true",
+        help="Check GitHub for the latest published Wizard release, then exit",
+    )
+    parser.add_argument(
+        "--no-update-check",
+        action="store_true",
+        help="Skip the once-daily automatic update check",
+    )
     parser.add_argument("--yes", "-y", action="store_true", help="Non-interactive: accept defaults; requires --export")
     parser.add_argument(
         "--no-system-install",
@@ -959,6 +1069,12 @@ def main(argv: list[str] | None = None) -> int:
     TERM = ui.Term(plain=args.plain)
     bundle = args.bundle_dir.expanduser().resolve()
     try:
+        if args.check_for_updates:
+            report_update_check(
+                force=True,
+                offer_open=not args.yes and sys.stdin.isatty(),
+            )
+            return 0
         if args.doctor:
             validate_bundle(bundle)
             if args.fix:

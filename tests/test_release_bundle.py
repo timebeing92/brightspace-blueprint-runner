@@ -16,6 +16,11 @@ SPEC.loader.exec_module(release)
 
 
 class RunnerReleaseBundleTests(unittest.TestCase):
+    def test_start_here_explains_the_safe_update_boundary(self) -> None:
+        self.assertIn("--check-for-updates", release.START_HERE)
+        self.assertIn("--no-update-check", release.START_HERE)
+        self.assertIn("never replaces files", release.START_HERE)
+
     def test_remote_normalization_removes_credentials(self) -> None:
         self.assertEqual(
             release.normalized_remote("https://token@github.com/example/repo.git"),

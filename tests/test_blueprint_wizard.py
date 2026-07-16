@@ -12,6 +12,7 @@ SCRIPTS = ROOT / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 import blueprint_wizard as wizard  # noqa: E402
+import update_check  # noqa: E402
 import ui  # noqa: E402
 
 
@@ -138,6 +139,76 @@ def test_missing_advanced_preview_tools_do_not_affect_core_setup(
     assert "pdf2image (requirements-render.txt)" in missing
     with pytest.raises(SystemExit, match="Normal DOCX generation and structural QA"):
         wizard.require_advanced_render_tools(tmp_path)
+
+
+def test_update_check_cli_controls_are_explicit() -> None:
+    forced = wizard.parse_args(["--check-for-updates"])
+    disabled = wizard.parse_args(["--no-update-check"])
+
+    assert forced.check_for_updates is True
+    assert forced.no_update_check is False
+    assert disabled.no_update_check is True
+    assert disabled.check_for_updates is False
+
+
+def test_available_update_is_reported_without_replacing_files(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    wizard.TERM = ui.Term(plain=True)
+    monkeypatch.setattr(wizard, "update_cache_path", lambda: tmp_path / "cache.json")
+    monkeypatch.setattr(
+        wizard.update_check,
+        "check_latest_release",
+        lambda **kwargs: update_check.UpdateStatus(
+            state="update_available",
+            current_version=wizard.VERSION,
+            latest_version="9.1.0",
+            latest_tag="v9.1.0",
+            release_name="Blueprint Wizard v9.1.0",
+            release_url="https://github.com/example/releases/tag/v9.1.0",
+        ),
+    )
+    monkeypatch.setattr(wizard.update_check, "notice_is_due", lambda *args, **kwargs: True)
+    notified: list[str] = []
+    monkeypatch.setattr(
+        wizard.update_check,
+        "mark_notified",
+        lambda *args, **kwargs: notified.append(kwargs["latest_version"]),
+    )
+    monkeypatch.setattr(wizard.ui, "confirm", lambda *args, **kwargs: False)
+
+    wizard.report_update_check(force=False, offer_open=True)
+    out = capsys.readouterr().out
+
+    assert "Blueprint Wizard update available" in out
+    assert f"v{wizard.VERSION}" in out
+    assert "v9.1.0" in out
+    assert "no files were replaced" in out
+    assert notified == ["9.1.0"]
+
+
+def test_forced_offline_update_check_reports_but_does_not_fail(
+    monkeypatch,
+    capsys,
+) -> None:
+    wizard.TERM = ui.Term(plain=True)
+    monkeypatch.setattr(
+        wizard.update_check,
+        "check_latest_release",
+        lambda **kwargs: update_check.UpdateStatus(
+            state="unavailable",
+            current_version=wizard.VERSION,
+            error="offline",
+        ),
+    )
+
+    wizard.report_update_check(force=True, offer_open=False)
+    out = capsys.readouterr().out
+
+    assert "Update check unavailable" in out
+    assert "still usable" in out
 
 
 def test_run_pipeline_consumes_progress_events(tmp_path: Path, monkeypatch) -> None:
