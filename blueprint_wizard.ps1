@@ -33,6 +33,17 @@ function Test-Python([string[]]$Command) {
     return $false
 }
 
+function New-PythonSelection([string[]]$Command) {
+    $prefixArguments = @()
+    if ($Command.Count -gt 1) {
+        $prefixArguments = @($Command[1..($Command.Count - 1)])
+    }
+    return [PSCustomObject]@{
+        Executable = [string]$Command[0]
+        PrefixArguments = [string[]]$prefixArguments
+    }
+}
+
 function Find-Python {
     $candidates = @()
     if ($env:PYTHON) { $candidates += ,@($env:PYTHON) }
@@ -45,7 +56,13 @@ function Find-Python {
         if (Get-Command $cmd -ErrorAction SilentlyContinue) { $candidates += ,@($cmd) }
     }
     foreach ($candidate in $candidates) {
-        if (Test-Python $candidate) { return $candidate }
+        if (Test-Python $candidate) {
+            # A one-element PowerShell array is normally unwrapped to a
+            # string on return. Preserve the executable and any py-launcher
+            # prefix arguments as named fields so "python3" never becomes
+            # only its first character ("p") at invocation time.
+            return (New-PythonSelection $candidate)
+        }
     }
     return $null
 }
@@ -75,9 +92,8 @@ if (-not $Python) {
     }
 }
 
-$PythonCmd = $Python[0]
-$PythonArgs = @()
-if ($Python.Count -gt 1) { $PythonArgs = @($Python[1..($Python.Count - 1)]) }
+$PythonCmd = $Python.Executable
+$PythonArgs = @($Python.PrefixArguments)
 
 & $PythonCmd @PythonArgs (Join-Path $Here "scripts\blueprint_wizard.py") @args
 exit $LASTEXITCODE

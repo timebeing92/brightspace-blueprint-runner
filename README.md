@@ -1,9 +1,9 @@
 # Brightspace Blueprint Runner
 
-Current version: **2.5.1**
+Current version: **2.5.2**
 
-The v2.5.1 one-download ZIP includes bundle v1.1.1. Published asset SHA-256:
-`4cddb2ba5f07dae4e1621778a4a50e00004fb0fdd8cb9d62e91672123cf1b0d4`.
+The v2.5.2 one-download ZIP includes bundle v1.1.1. Its checksum is published
+beside the asset on the GitHub Releases page.
 
 ```text
          ▄                           ▄
@@ -39,6 +39,14 @@ affected steps, links the pipeline-status report, and still presents every
 Markdown, DOCX, workbook, rubric, and QA artifact that was successfully
 produced.
 
+v2.5.2 verifies the runner-folder launch surface itself: the macOS and POSIX
+launchers execute the current wizard, the Windows batch file delegates and
+preserves its exit status, and the PowerShell launcher safely retains both
+one-part commands such as `python3` and two-part commands such as `py -3.12`.
+The curl installer now installs a generated, commit-verified runner/bundle
+pair and records the installed identities instead of pulling two unrelated
+moving branch heads.
+
 > [!IMPORTANT]
 > Do not use GitHub's green **Code -> Download ZIP** button as the one-download
 > install. That source ZIP contains only this runner repo, not the companion
@@ -65,8 +73,8 @@ knowledge, and updating means downloading the next zip. (macOS, first run
 only: if Gatekeeper warns about an unidentified developer, right-click the
 `.command` file and choose Open.)
 
-**2. git clone — for people who want `git pull` updates.** Clone the two
-repos as sibling folders, then launch from the runner:
+**2. git clone — for contributors and people following development.** Clone
+the two repos as sibling folders, then launch from the runner:
 
 ```bash
 git clone https://github.com/timebeing92/brightspace-blueprint-runner
@@ -74,8 +82,8 @@ git clone https://github.com/timebeing92/brightspace-blueprint-bundle
 bash brightspace-blueprint-runner/blueprint_wizard.sh
 ```
 
-Choose this if you're comfortable with git and want incremental updates and
-history instead of re-downloading zips.
+Choose this if you're comfortable with git and intentionally want the current
+development branches and their history instead of a pinned release pair.
 
 **3. Installer script — one command, terminal-first.**
 
@@ -83,10 +91,13 @@ history instead of re-downloading zips.
 curl -fsSL https://raw.githubusercontent.com/timebeing92/brightspace-blueprint-runner/main/install_blueprint_wizard.sh | bash
 ```
 
-Clones both repos into `./blueprint-wizard/` and starts the wizard;
-re-running it later updates both repos. Choose this if you live in the
-terminal and want the fastest zero-to-wizard path. Requires git — both
-repos are public, so this works for anyone.
+Clones both repos into `./blueprint-wizard/` and starts the wizard. The
+installer reads `installer-compatibility.lock`, verifies the published tag
+commits, checks out that recorded runner/bundle pair, and writes
+`INSTALL_RECEIPT.txt`. Re-running it later installs the newly recorded
+compatible pair without combining two independent moving `main` branches.
+Choose this if you live in the terminal and want the fastest zero-to-wizard
+path. Requires git — both repos are public, so this works for anyone.
 
 Maintainers cut the release zip from explicit commits:
 
@@ -99,6 +110,15 @@ python3 scripts/make_release_bundle.py \
 The builder refuses dirty worktrees by default and writes
 `RELEASE_MANIFEST.json` inside the ZIP with both repository commits and the
 bundle contract hashes. A sibling `.sha256` file records the ZIP checksum.
+After publishing a compatible pair, refresh the installer record with:
+
+```bash
+python3 scripts/update_installer_compatibility.py \
+  --runner-ref vX.Y.Z \
+  --bundle-ref vA.B.C
+```
+
+The generated lock is reviewed and committed; it is not edited by hand.
 
 ## Run
 
@@ -186,14 +206,16 @@ brightspace-blueprint-runner/
 ├── Blueprint Wizard.bat     <- Windows double-click launcher (runs the .ps1)
 ├── blueprint_wizard.sh      <- macOS/Linux launcher: finds/offers Python 3.11+, execs the wizard
 ├── blueprint_wizard.ps1     <- Windows launcher: same job in PowerShell (winget install offer)
-├── install_blueprint_wizard.sh <- curl-able installer: clones both repos, starts the wizard
+├── install_blueprint_wizard.sh <- curl-able installer: verifies and installs the recorded release pair
+├── installer-compatibility.lock <- generated compatible runner/bundle tag and commit identities
 ├── requirements-dev.txt    <- pytest for the runner test suite
 └── scripts/
     ├── blueprint_wizard.py  <- the blueprint-specific flow
     ├── ui.py                <- reusable ANSI components (terminal caps, cards, step board)
     ├── art.py               <- splash scene + animation
-    └── make_release_bundle.py <- maintainer tool: builds the release zip from both repos
-└── tests/                  <- contract tests for command construction, progress events, and results
+    ├── make_release_bundle.py <- maintainer tool: builds the release zip from both repos
+    └── update_installer_compatibility.py <- generates the installer compatibility record
+└── tests/                  <- contract and launcher tests
 ```
 
 `ui.py` and `art.py` are deliberately free of blueprint knowledge so future
