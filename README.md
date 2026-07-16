@@ -1,9 +1,9 @@
 # Brightspace Blueprint Runner
 
-Current version: **2.5.3**
+Current version: **2.5.4**
 
-The v2.5.3 one-download ZIP includes bundle v1.1.1. Published asset SHA-256:
-`17ad61bda1463bcfc06e93d35291522083832c15a06a4b31b43d4fb713023d2c`.
+The v2.5.4 one-download ZIP includes bundle v1.1.1. Its checksum is published
+beside the asset on the GitHub Releases page.
 
 ```text
          ▄                           ▄
@@ -52,6 +52,11 @@ v2.5.3 improves terminal readability. Interactive choice/default cues such as
 “The wizard holds the scroll to the light…”, now use the terminal's normal
 foreground intensity instead of ANSI dim/faint styling. Decorative metadata
 and raw diagnostic output remain subdued.
+
+v2.5.4 extends that readability pass to course-preview lists. Module titles and
+the “+N more” line in “The wizard peers into the scroll” now use a legible
+steel blue instead of dim gray, preserving separation from the card's white
+labels and borders.
 
 > [!IMPORTANT]
 > Do not use GitHub's green **Code -> Download ZIP** button as the one-download

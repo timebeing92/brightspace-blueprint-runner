@@ -67,6 +67,10 @@ class Term:
     def accent(self, text: str, *, bold: bool = False) -> str:   # blueprint cyan
         return self.fg(45, text, bold=bold)
 
+    def supporting(self, text: str) -> str:
+        """Steel blue for readable detail that should not compete with labels."""
+        return self.fg(110, text)
+
     def good(self, text: str) -> str:
         return self.fg(78, text)
 

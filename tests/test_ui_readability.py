@@ -61,3 +61,13 @@ def test_plain_mode_keeps_identical_words_without_ansi() -> None:
     assert term.secondary("The wizard holds the scroll to the light…") == (
         "The wizard holds the scroll to the light…"
     )
+    assert term.supporting("  · Faculty Resources") == "  · Faculty Resources"
+
+
+def test_supporting_detail_is_legible_steel_blue_not_dim_gray() -> None:
+    term = color_term()
+    title = "  · Faculty Resources"
+    rendered = term.supporting(title)
+
+    assert rendered == f"\x1b[38;5;110m{title}\x1b[0m"
+    assert "\x1b[2m" not in rendered

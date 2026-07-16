@@ -34,7 +34,7 @@ REQUIRED_MODULES = [
     ("pdf2image", "pdf2image"),
     ("jsonschema", "jsonschema"),
 ]
-VERSION = "2.5.3"
+VERSION = "2.5.4"
 
 # Minimum on-screen time per step in interactive runs, so the flavor line and
 # its animation register before the step flips to done. The pipeline itself is
@@ -436,9 +436,11 @@ def pick_export_interactive(*, revisit: bool = False) -> Path:
             for title in titles[:limit]:
                 if len(title) > 52:
                     title = title[:51] + "…"
-                rows.append(("", TERM.dim(f"  · {title}")))
+                rows.append(("", TERM.supporting(f"  · {title}")))
             if len(titles) > limit:
-                rows.append(("", TERM.dim(f"    … +{len(titles) - limit} more")))
+                rows.append(
+                    ("", TERM.supporting(f"    … +{len(titles) - limit} more"))
+                )
         rows.append(("Files", f"{peek['files']}  ·  {human_size(peek['size'])}"))
         if not peek["has_manifest"]:
             rows.append(("", TERM.warn("No imsmanifest.xml found — this may not be a Brightspace export.")))
