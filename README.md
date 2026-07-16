@@ -2,8 +2,8 @@
 
 Current version: **2.5.4**
 
-The v2.5.4 one-download ZIP includes bundle v1.1.1. Its checksum is published
-beside the asset on the GitHub Releases page.
+The v2.5.4 one-download ZIP includes bundle v1.1.1. Published asset SHA-256:
+`5bb67d6ec0872c0134d8b802d260484951daa25963ee8f31f129aadc8e9530cb`.
 
 ```text
          ▄                           ▄
