@@ -1,5 +1,7 @@
 # Brightspace Blueprint Runner
 
+Current version: **2.5.1**
+
 ```text
          ▄                           ▄
        ▄            ▀                     ▄
@@ -27,6 +29,12 @@ options, runs the blueprint pipeline with a live step display, and finishes
 with a results card. The pipeline itself lives entirely in the bundle — the
 wizard wraps its CLI and consumes its progress-event contract
 (`coursecraft.progress/1`); it never re-implements extraction logic.
+
+Starting in v2.5.1, a recoverable component or QA failure no longer hides a
+usable blueprint. The results card labels the run **Partial**, lists the
+affected steps, links the pipeline-status report, and still presents every
+Markdown, DOCX, workbook, rubric, and QA artifact that was successfully
+produced.
 
 > [!IMPORTANT]
 > Do not use GitHub's green **Code -> Download ZIP** button as the one-download

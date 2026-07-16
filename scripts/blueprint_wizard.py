@@ -34,7 +34,7 @@ REQUIRED_MODULES = [
     ("pdf2image", "pdf2image"),
     ("jsonschema", "jsonschema"),
 ]
-VERSION = "2.5"
+VERSION = "2.5.1"
 
 # Minimum on-screen time per step in interactive runs, so the flavor line and
 # its animation register before the step flips to done. The pipeline itself is
@@ -758,9 +758,17 @@ def show_results(run_end: dict, log_path: Path, args: argparse.Namespace, elapse
     outputs = run_end.get("outputs", {})
     summary = run_end.get("summary", {})
     bundle_dir = Path(run_end.get("bundle_dir", ""))
+    status = run_end.get("status", "ok")
+    issues = run_end.get("issues", []) or []
 
     rows: list[tuple[str, str]] = []
     rows.append(("Drafted in", format_duration(elapsed)))
+    if status == "partial":
+        rows.append(("Run status", TERM.warn("Partial — review component findings")))
+    elif status == "error":
+        rows.append(("Run status", TERM.bad("Error — recovered outputs are incomplete")))
+    else:
+        rows.append(("Run status", TERM.good("Complete")))
     weeks = summary.get("weeks")
     if weeks is not None:
         rows.append(("Weeks", str(weeks)))
@@ -780,6 +788,15 @@ def show_results(run_end: dict, log_path: Path, args: argparse.Namespace, elapse
     needs_review = summary.get("needs_review")
     if needs_review is not None:
         rows.append(("Needs review", f"{needs_review} field(s) to fill in during review"))
+    if issues:
+        rows.append(("Component findings", TERM.warn(str(len(issues)))))
+        for issue in issues[:3]:
+            rows.append(
+                (
+                    TERM.dim(issue.get("step", "Component")),
+                    TERM.dim(issue.get("message", "Unknown issue").splitlines()[0]),
+                )
+            )
     rows.append(("", ""))
     primary_key = "docx" if outputs.get("docx") and Path(outputs["docx"]).exists() else "markdown"
     for label, key, quiet_row in (
@@ -790,7 +807,10 @@ def show_results(run_end: dict, log_path: Path, args: argparse.Namespace, elapse
         ("Rubrics DOCX", "rubrics_docx", False),
         ("Rubrics XLSX", "rubrics_workbook", False),
         ("Rubrics JSON", "rubrics_json", True),
+        ("Rubrics raw/unparsed", "rubrics_unparsed", True),
         ("QA report", "qa_report", False),
+        ("DOCX structure QA", "docx_structure_report", False),
+        ("Pipeline status", "status_report", False),
     ):
         emphasis = "primary" if key == primary_key else ("dim" if quiet_row else "normal")
         row = _output_row(label, outputs.get(key), emphasis)
@@ -801,7 +821,13 @@ def show_results(run_end: dict, log_path: Path, args: argparse.Namespace, elapse
     rows.append((TERM.dim("Run log"), TERM.dim(str(log_path))))
 
     print()
-    print(ui.card(TERM, "The blueprint is drafted ✦", rows))
+    if status == "ok":
+        title = "The blueprint is drafted ✦"
+    elif status == "partial":
+        title = TERM.warn("The blueprint is drafted — review needed")
+    else:
+        title = TERM.bad("Recovered blueprint outputs")
+    print(ui.card(TERM, title, rows))
 
     if args.yes or TERM.plain:
         return
@@ -894,15 +920,34 @@ def run_wizard(args: argparse.Namespace) -> int:
         # A tap on the shoulder for anyone who tabbed away during a long run.
         sys.stdout.write("\a")
         sys.stdout.flush()
-    if returncode == 0 and run_end and run_end.get("status") == "ok":
+    outputs = (run_end or {}).get("outputs", {})
+    usable_output = any(
+        path_text and Path(path_text).exists()
+        for path_text in (outputs.get("docx"), outputs.get("markdown"))
+    )
+    if run_end and usable_output:
+        status = run_end.get("status")
         if not TERM.plain:
             print()
-            print("  " + TERM.good("✦") + " The drafting is complete.")
+            if status == "ok":
+                print("  " + TERM.good("✦") + " The drafting is complete.")
+            elif status == "partial":
+                print(
+                    "  "
+                    + TERM.warn("!")
+                    + " The blueprint was produced with component findings to review."
+                )
+            else:
+                print(
+                    "  "
+                    + TERM.warn("!")
+                    + " The pipeline reported an error, but recovered outputs are available."
+                )
             if pace:
                 time.sleep(0.9)
         save_answers(options)
         show_results(run_end, log_path, args, elapsed)
-        return 0
+        return 0 if status in {"ok", "partial"} else (returncode or 1)
     show_failure(returncode, recent, log_path, failed_step, args)
     return returncode or 1
 

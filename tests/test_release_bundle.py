@@ -25,7 +25,7 @@ class RunnerReleaseBundleTests(unittest.TestCase):
     def test_deterministic_zip_preserves_executable_mode(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            source = root / "blueprint-wizard-v2.5"
+            source = root / "blueprint-wizard-v2.5.1"
             source.mkdir()
             launcher = source / "Blueprint Wizard.command"
             launcher.write_text("#!/bin/sh\n", encoding="utf-8")
@@ -37,7 +37,7 @@ class RunnerReleaseBundleTests(unittest.TestCase):
             self.assertEqual(first.read_bytes(), second.read_bytes())
             with zipfile.ZipFile(first) as archive:
                 info = archive.getinfo(
-                    "blueprint-wizard-v2.5/Blueprint Wizard.command"
+                    "blueprint-wizard-v2.5.1/Blueprint Wizard.command"
                 )
                 self.assertEqual((info.external_attr >> 16) & 0o777, 0o755)
 

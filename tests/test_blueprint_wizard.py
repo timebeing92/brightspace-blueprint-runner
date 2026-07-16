@@ -145,3 +145,38 @@ def test_show_results_lists_rubric_docx(tmp_path: Path, capsys) -> None:
     assert "Rubrics" in out
     assert "Rubrics DOCX" in out
     assert "demo__rubrics.docx" in out
+
+
+def test_show_results_surfaces_partial_status_and_report(tmp_path: Path, capsys) -> None:
+    wizard.TERM = ui.Term(plain=True)
+    bundle_dir = tmp_path / "demo__blueprint_bundle"
+    bundle_dir.mkdir()
+    markdown = bundle_dir / "demo__blueprint.md"
+    status_report = bundle_dir / "demo__pipeline_status.md"
+    markdown.write_text("# Demo\n", encoding="utf-8")
+    status_report.write_text("# Pipeline Status\n", encoding="utf-8")
+    run_end = {
+        "status": "partial",
+        "outputs": {
+            "markdown": str(markdown),
+            "status_report": str(status_report),
+        },
+        "issues": [
+            {
+                "step": "Check DOCX structure",
+                "status": "failed",
+                "message": "A component check failed, but the blueprint remains usable.",
+            }
+        ],
+        "summary": {"weeks": 2, "rubrics": 1, "needs_review": 0},
+        "bundle_dir": str(bundle_dir),
+    }
+    args = argparse.Namespace(yes=True)
+
+    wizard.show_results(run_end, tmp_path / "run.log", args, 12.0)
+    out = capsys.readouterr().out
+
+    assert "Partial" in out
+    assert "Check DOCX structure" in out
+    assert "Pipeline status" in out
+    assert "demo__pipeline_status.md" in out
