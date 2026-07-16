@@ -43,9 +43,9 @@ your machine and asks permission before installing anything it needs
 (Python 3.11+ if missing, plus its own Python packages in a private
 .venv inside this folder). Your course export never leaves your machine.
 
-The optional "DOCX visual render QA" step needs LibreOffice and Poppler —
-the wizard offers those installs too, and every other output works
-without them.
+Normal DOCX generation and structural QA do not need LibreOffice or Poppler.
+An advanced maintainer-only render preview remains available through the
+documented bundle CLI, but it is not part of normal setup.
 
 Folders:
   brightspace-blueprint-runner/   the wizard (what you launch)

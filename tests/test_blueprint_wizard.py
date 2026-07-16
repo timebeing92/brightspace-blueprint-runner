@@ -5,6 +5,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "scripts"
 sys.path.insert(0, str(SCRIPTS))
@@ -59,6 +61,83 @@ def test_build_command_can_skip_docx_and_qa(tmp_path: Path) -> None:
     assert "--skip-qa" in cmd
     assert "--no-docx" in cmd
     assert "--docx-section-layout" not in cmd
+
+
+def test_advanced_render_preview_requires_explicit_option(tmp_path: Path) -> None:
+    options = {
+        "label": "advanced_preview",
+        "course_title": "",
+        "course_number": "",
+        "term": "",
+        "run_qa": True,
+        "check_external": False,
+        "render_docx": True,
+        "layout": "top",
+        "render_qa": True,
+    }
+
+    cmd = wizard.build_command(tmp_path / "bundle", tmp_path / "course.zip", options)
+
+    assert "--render-docx-check" in cmd
+
+
+def test_core_setup_excludes_visual_preview_dependencies() -> None:
+    assert ("pdf2image", "pdf2image") not in wizard.REQUIRED_MODULES
+    assert [package for _, package in wizard.REQUIRED_MODULES] == [
+        "openpyxl",
+        "python-docx",
+        "jsonschema",
+    ]
+
+
+def test_remembered_visual_preview_is_not_reactivated(
+    tmp_path: Path, monkeypatch
+) -> None:
+    args = argparse.Namespace(
+        yes=False,
+        label=None,
+        course_title=None,
+        course_number=None,
+        term=None,
+        no_docx=None,
+        docx_section_layout=None,
+        skip_qa=None,
+        check_external_links=None,
+        render_docx_check=False,
+    )
+    export = tmp_path / "course.zip"
+    export.write_bytes(b"fixture")
+    monkeypatch.setattr(
+        wizard,
+        "load_last_answers",
+        lambda: {
+            "label": "remembered",
+            "render_docx": True,
+            "layout": "top",
+            "run_qa": True,
+            "check_external": False,
+            "render_qa": True,
+        },
+    )
+    monkeypatch.setattr(wizard.ui, "confirm", lambda *args, **kwargs: True)
+
+    options = wizard.gather_options(args, export, {"title": "Demo"})
+
+    assert options["render_qa"] is False
+    assert all(
+        label != "8. Visual render QA"
+        for label, _ in wizard.options_rows(export, options)
+    )
+
+
+def test_missing_advanced_preview_tools_do_not_affect_core_setup(
+    tmp_path: Path,
+) -> None:
+    missing = wizard.missing_advanced_render_tools(tmp_path)
+
+    assert "pdf2image (requirements-render.txt)" in missing
+    with pytest.raises(SystemExit, match="Normal DOCX generation and structural QA"):
+        wizard.require_advanced_render_tools(tmp_path)
 
 
 def test_run_pipeline_consumes_progress_events(tmp_path: Path, monkeypatch) -> None:

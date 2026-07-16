@@ -11,7 +11,6 @@ import argparse
 import datetime as _dt
 import json
 import os
-import platform
 import queue
 import re
 import shlex
@@ -31,10 +30,9 @@ MIN_PYTHON = (3, 11)
 REQUIRED_MODULES = [
     ("openpyxl", "openpyxl"),
     ("docx", "python-docx"),
-    ("pdf2image", "pdf2image"),
     ("jsonschema", "jsonschema"),
 ]
-VERSION = "2.5.4"
+VERSION = "2.6.0"
 
 # Minimum on-screen time per step in interactive runs, so the flavor line and
 # its animation register before the step flips to done. The pipeline itself is
@@ -51,7 +49,7 @@ FLAVOR = {
     "Assemble blueprint model and Markdown": "Inscribing the blueprint…",
     "Render DOCX": "Binding the review tome…",
     "Check DOCX structure": "Testing the tome's binding…",
-    "DOCX visual render check": "Holding pages up to the light…",
+    "Render DOCX preview pages": "Preparing pages for maintainer inspection…",
 }
 
 TERM = ui.Term(plain=True)  # replaced in main() once flags are parsed
@@ -144,7 +142,6 @@ def validate_bundle(bundle: Path) -> None:
         bundle / "requirements.txt",
         bundle / "bootstrap.sh",
         bundle / "scripts" / "build_blueprint_bundle.py",
-        bundle / "scripts" / "render_blueprint_docx.py",
     ]
     missing = [path for path in required if not path.exists()]
     if missing:
@@ -207,43 +204,11 @@ def ensure_requirements(bundle: Path, *, fix: bool, assume_yes: bool) -> bool:
     return package_status(bundle)[0]
 
 
-def package_manager_install_commands(missing_tools: list[str]) -> list[list[str]]:
-    system = platform.system()
-    commands: list[list[str]] = []
-    needs_libreoffice = "LibreOffice/soffice" in missing_tools
-    needs_poppler = "Poppler" in missing_tools
-
-    if system == "Darwin" and shutil.which("brew"):
-        if needs_poppler:
-            commands.append(["brew", "install", "poppler"])
-        if needs_libreoffice:
-            commands.append(["brew", "install", "--cask", "libreoffice"])
-    elif system == "Linux":
-        packages = []
-        if needs_libreoffice:
-            packages.append("libreoffice")
-        if needs_poppler:
-            packages.append("poppler-utils")
-        if shutil.which("apt-get") and packages:
-            commands.append(["sudo", "apt-get", "update"])
-            commands.append(["sudo", "apt-get", "install", "-y", *packages])
-        elif shutil.which("dnf") and packages:
-            commands.append(["sudo", "dnf", "install", "-y", *packages])
-        elif shutil.which("yum") and packages:
-            commands.append(["sudo", "yum", "install", "-y", *packages])
-        elif shutil.which("pacman"):
-            packages = []
-            if needs_libreoffice:
-                packages.append("libreoffice-fresh")
-            if needs_poppler:
-                packages.append("poppler")
-            if packages:
-                commands.append(["sudo", "pacman", "-S", "--needed", *packages])
-    return commands
-
-
-def missing_render_tools() -> list[str]:
+def missing_advanced_render_tools(bundle: Path) -> list[str]:
     missing: list[str] = []
+    python = venv_python(bundle)
+    if not python.exists() or not module_installed(python, "pdf2image"):
+        missing.append("pdf2image (requirements-render.txt)")
     if not find_soffice():
         missing.append("LibreOffice/soffice")
     poppler_ok, _ = poppler_status()
@@ -252,23 +217,18 @@ def missing_render_tools() -> list[str]:
     return missing
 
 
-def ensure_render_tools(*, fix: bool, assume_yes: bool, no_system_install: bool) -> bool:
-    missing = missing_render_tools()
+def require_advanced_render_tools(bundle: Path) -> None:
+    missing = missing_advanced_render_tools(bundle)
     if not missing:
-        return True
-    print(ui.status_line(TERM, "bad", "Render QA tools", "missing " + ", ".join(missing)))
-    if no_system_install or not fix:
-        print(TERM.dim("  DOCX visual render QA stays unavailable until these are installed."))
-        return False
-    commands = package_manager_install_commands(missing)
-    if not commands:
-        print("  No supported package-manager install command was found for these tools.")
-        print("  Install LibreOffice and Poppler manually, then rerun the wizard.")
-        return False
-    if ui.confirm(TERM, "Install missing render QA system tools now?", default=True, assume_yes=assume_yes):
-        for cmd in commands:
-            run(cmd)
-    return not missing_render_tools()
+        return
+    details = "\n".join(f"  - {item}" for item in missing)
+    raise SystemExit(
+        "Advanced --render-docx-check was explicitly requested, but its optional "
+        f"preview tools are missing:\n{details}\n"
+        "Install the bundle's requirements-render.txt plus the named system "
+        "tools, or rerun without --render-docx-check. Normal DOCX generation "
+        "and structural QA do not need them."
+    )
 
 
 def preparation_checks(bundle: Path, args: argparse.Namespace) -> None:
@@ -287,14 +247,7 @@ def preparation_checks(bundle: Path, args: argparse.Namespace) -> None:
     print(ui.status_line(TERM, "ok", "Bundle .venv", str(venv_python(bundle))))
     if not ensure_requirements(bundle, fix=True, assume_yes=args.yes):
         raise SystemExit("Cannot continue without the required Python packages.")
-    print(ui.status_line(TERM, "ok", "Python packages", "openpyxl, python-docx, pdf2image, jsonschema"))
-
-    missing = missing_render_tools()
-    if missing:
-        print(ui.status_line(TERM, "todo", "Render QA tools (optional)", "missing " + ", ".join(missing)))
-        print(TERM.dim("    Markdown, JSON, XLSX, and DOCX outputs still work without them."))
-    else:
-        print(ui.status_line(TERM, "ok", "Render QA tools", "LibreOffice + Poppler"))
+    print(ui.status_line(TERM, "ok", "Python packages", "openpyxl, python-docx, jsonschema"))
 
 
 def print_doctor(bundle: Path) -> int:
@@ -311,17 +264,11 @@ def print_doctor(bundle: Path) -> int:
     req_ok, missing_packages = package_status(bundle)
     print(ui.status_line(TERM, "ok" if req_ok else "bad", "Python packages",
                          "ok" if req_ok else "missing " + ", ".join(missing_packages)))
-    soffice = find_soffice()
-    print(ui.status_line(TERM, "ok" if soffice else "todo", "LibreOffice/soffice", soffice or "missing"))
-    poppler_ok, missing_poppler = poppler_status()
-    print(ui.status_line(TERM, "ok" if poppler_ok else "todo", "Poppler",
-                         "ok" if poppler_ok else "missing " + ", ".join(missing_poppler)))
     print()
     print(ui.status_line(TERM, "ok" if req_ok else "bad", "Core pipeline",
                          "ready" if req_ok else "not ready"))
-    ready_qa = bool(soffice) and poppler_ok and req_ok
-    print(ui.status_line(TERM, "ok" if ready_qa else "todo", "DOCX render QA",
-                         "ready" if ready_qa else "not ready"))
+    print(ui.status_line(TERM, "ok" if req_ok else "bad", "DOCX structural QA",
+                         "ready" if req_ok else "not ready"))
     return 0 if req_ok else 1
 
 
@@ -501,9 +448,9 @@ def gather_options(args: argparse.Namespace, export: Path, peek: dict) -> dict:
         "check_external": args.check_external_links
         if args.check_external_links is not None
         else base.get("check_external", False),
-        "render_qa": args.render_docx_check
-        if args.render_docx_check is not None
-        else base.get("render_qa", False),
+        # Never revive a remembered visual-preview choice. This is an explicit
+        # maintainer-only flag, not part of the ordinary commission.
+        "render_qa": bool(args.render_docx_check),
     }
 
     if not args.yes and not use_last:
@@ -527,10 +474,6 @@ def gather_options(args: argparse.Namespace, export: Path, peek: dict) -> dict:
             options["check_external"] = ui.confirm(
                 TERM, "Fetch external URLs live? (network; slower)", default=options["check_external"]
             )
-        if options["render_docx"]:
-            options["render_qa"] = ui.confirm(
-                TERM, "Run DOCX visual render QA? (needs LibreOffice + Poppler)", default=options["render_qa"]
-            )
     if not options["label"]:
         options["label"] = suggested_output_name(options, derived_label)
     options["label"] = safe_label(options["label"])
@@ -539,7 +482,7 @@ def gather_options(args: argparse.Namespace, export: Path, peek: dict) -> dict:
 
 def options_rows(export: Path, options: dict) -> list[tuple[str, str]]:
     yes_no = lambda flag: "yes" if flag else "no"  # noqa: E731
-    return [
+    rows = [
         ("1. Export", str(export)),
         ("2. Course title", options["course_title"] or TERM.dim("(blank — Needs review)")),
         ("3. Course number", options["course_number"] or TERM.dim("(blank)")),
@@ -550,8 +493,15 @@ def options_rows(export: Path, options: dict) -> list[tuple[str, str]]:
          + (f"  ·  layout: {options['layout']}" if options["render_docx"] else "")),
         ("7. QA report", yes_no(options["run_qa"])
          + ("  ·  live external links" if options["run_qa"] and options["check_external"] else "")),
-        ("8. Visual render QA", yes_no(options["render_qa"])),
     ]
+    if options["render_qa"]:
+        rows.append(
+            (
+                "Advanced render preview",
+                "yes  ·  explicit --render-docx-check",
+            )
+        )
+    return rows
 
 
 def review_options(args: argparse.Namespace, export: Path, options: dict) -> tuple[Path, dict]:
@@ -594,10 +544,8 @@ def review_options(args: argparse.Namespace, export: Path, options: dict) -> tup
             options["run_qa"] = ui.confirm(TERM, "Run the QA report?", default=options["run_qa"])
             if options["run_qa"]:
                 options["check_external"] = ui.confirm(TERM, "Fetch external URLs live?", default=options["check_external"])
-        elif reply == "8":
-            options["render_qa"] = ui.confirm(TERM, "Run DOCX visual render QA?", default=options["render_qa"])
         else:
-            print(TERM.dim("    Enter 1-8, or Return to run."))
+            print(TERM.dim("    Enter 1-7, or Return to run."))
 
 
 # --------------------------------------------------------------------------- #
@@ -903,7 +851,7 @@ def run_wizard(args: argparse.Namespace) -> int:
     options = gather_options(args, export, peek)
     export, options = review_options(args, export, options)
     if options["render_qa"]:
-        ensure_render_tools(fix=True, assume_yes=args.yes, no_system_install=args.no_system_install)
+        require_advanced_render_tools(bundle)
 
     cmd = build_command(bundle, export, options)
     print()
@@ -961,7 +909,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--doctor", action="store_true", help="Check setup without running an export")
     parser.add_argument("--fix", action="store_true", help="With --doctor, offer to install missing bundle dependencies")
     parser.add_argument("--yes", "-y", action="store_true", help="Non-interactive: accept defaults; requires --export")
-    parser.add_argument("--no-system-install", action="store_true", help="Do not offer package-manager installs for system tools")
+    parser.add_argument(
+        "--no-system-install",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
     parser.add_argument("--plain", action="store_true", help="No color, art, or animation")
     parser.add_argument("--no-splash", action="store_true", help="Skip the splash screen")
     parser.add_argument(
@@ -973,8 +925,22 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--course-title", help="Course title for the blueprint front matter")
     parser.add_argument("--course-number", help="Course number metadata (e.g. ABC 123)")
     parser.add_argument("--term", help="Term metadata (e.g. Fall 2026)")
-    parser.add_argument("--render-docx-check", dest="render_docx_check", action="store_true", default=None)
-    parser.add_argument("--no-render-docx-check", dest="render_docx_check", action="store_false")
+    parser.add_argument(
+        "--render-docx-check",
+        dest="render_docx_check",
+        action="store_true",
+        default=False,
+        help=(
+            "Advanced maintainer preview: render DOCX pages for human inspection "
+            "(requires the bundle's optional requirements-render.txt, LibreOffice, and Poppler)"
+        ),
+    )
+    parser.add_argument(
+        "--no-render-docx-check",
+        dest="render_docx_check",
+        action="store_false",
+        help=argparse.SUPPRESS,
+    )
     parser.add_argument("--check-external-links", dest="check_external_links", action="store_true", default=None)
     parser.add_argument("--no-check-external-links", dest="check_external_links", action="store_false")
     parser.add_argument("--skip-qa", dest="skip_qa", action="store_true", default=None)
@@ -998,7 +964,6 @@ def main(argv: list[str] | None = None) -> int:
             if args.fix:
                 ensure_venv(bundle, fix=True, assume_yes=args.yes)
                 ensure_requirements(bundle, fix=True, assume_yes=args.yes)
-                ensure_render_tools(fix=True, assume_yes=args.yes, no_system_install=args.no_system_install)
             return print_doctor(bundle)
         return run_wizard(args)
     except KeyboardInterrupt:

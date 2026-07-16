@@ -1,9 +1,9 @@
 # Brightspace Blueprint Runner
 
-Current version: **2.5.4**
+Current version: **2.6.0**
 
-The v2.5.4 one-download ZIP includes bundle v1.1.1. Published asset SHA-256:
-`5bb67d6ec0872c0134d8b802d260484951daa25963ee8f31f129aadc8e9530cb`.
+The v2.6.0 one-download ZIP includes bundle v1.2.0. Its checksum is published
+beside the asset on the GitHub Releases page.
 
 ```text
          ▄                           ▄
@@ -57,6 +57,13 @@ v2.5.4 extends that readability pass to course-preview lists. Module titles and
 the “+N more” line in “The wizard peers into the scroll” now use a legible
 steel blue instead of dim gray, preserving separation from the card's white
 labels and borders.
+
+v2.6.0 removes LibreOffice, Poppler, and `pdf2image` from the ordinary Wizard
+workflow. Default pure-Python structural DOCX QA remains enabled. The Wizard no
+longer checks, prompts, or offers to install visual-render tools, and the
+commission no longer includes a visual-render question. The existing
+`--render-docx-check` flag remains available only as an explicit maintainer
+preview whose generated pages require human inspection.
 
 > [!IMPORTANT]
 > Do not use GitHub's green **Code -> Download ZIP** button as the one-download
@@ -151,9 +158,9 @@ The wizard walks through:
 
 1. **Splash** — a pixel-art wizard drafts the blueprint (any key skips;
    auto-skipped when piped, with `--plain`/`--no-splash`, or under `NO_COLOR`).
-2. **The workshop** — checklist of Python 3.11+, the bundle `.venv`, Python
-   packages, and the optional LibreOffice/Poppler render tools. Anything
-   missing is offered as an install, with a permission prompt first. (Phase
+2. **The workshop** — checklist of Python 3.11+, the bundle `.venv`, and the
+   core Python packages. Anything missing is offered as an install, with a
+   permission prompt first. (Phase
    headings carry a dim `· 1 of 4 ·` marker so you always know where you are.)
 3. **The export** — drag the export ZIP/folder into the terminal. The wizard
    peeks inside and shows the course title, module count, the module list
@@ -189,10 +196,13 @@ bash blueprint_wizard.sh --yes --export /path/to/export.zip \
   --course-title "Course Title" --course-number "ABC 123" --term "Fall 2026"
 ```
 
-`--yes` accepts every confirmation and requires `--export`. All pipeline
+`--yes` accepts every confirmation and requires `--export`. Normal pipeline
 toggles are available as flags (`--no-docx`, `--skip-qa`,
-`--check-external-links`, `--render-docx-check`, `--docx-section-layout`,
-`--label`).
+`--check-external-links`, `--docx-section-layout`, `--label`).
+
+Maintainers can explicitly pass `--render-docx-check` after installing the
+bundle's `requirements-render.txt`, LibreOffice, and Poppler. The Wizard does
+not install or prompt for those optional preview tools.
 
 ## Doctor Mode
 
@@ -250,11 +260,12 @@ need a Brightspace export or the sibling bundle checkout.
   `coursecraft.progress/1` event stream; the runner does not parse D2L XML or
   glob for rubric artifacts. When the bundle reports `outputs.rubrics_docx`,
   the results card shows the standalone rubric review document.
-- System tools are installed only after an explicit prompt.
-- LibreOffice/`soffice` and Poppler are only required for the optional DOCX
-  *visual* render QA. A pure-Python structural check of the DOCX
-  (relationships, hyperlinks, tables, titles) runs automatically with no
-  extra installs.
+- Normal runs have no LibreOffice or Poppler dependency. A pure-Python
+  structural check of the DOCX (relationships, hyperlinks, tables, titles)
+  runs automatically.
+- The backward-compatible `--render-docx-check` flag is an advanced manual
+  compatibility preview, not part of the ordinary Wizard commission or doctor
+  setup.
 - Default bundle location: `../brightspace-blueprint-bundle` (override with
   `--bundle-dir`).
 - On Windows, the PowerShell launcher prefers the `py` launcher, filters out
