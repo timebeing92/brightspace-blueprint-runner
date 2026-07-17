@@ -86,10 +86,38 @@ class LauncherTests(unittest.TestCase):
                 )
 
     def test_macos_and_posix_launchers_are_executable(self) -> None:
-        for name in ("Blueprint Wizard.command", "blueprint_wizard.sh"):
+        for name in (
+            "Blueprint Wizard.command",
+            "blueprint_wizard.sh",
+            "launcher/blueprint_wizard_launcher.sh",
+        ):
             with self.subTest(name=name):
                 mode = (ROOT / name).stat().st_mode
                 self.assertTrue(mode & stat.S_IXUSR)
+
+    def test_stable_posix_launcher_has_valid_shell_syntax(self) -> None:
+        result = run_launcher(
+            "bash",
+            "-n",
+            "launcher/blueprint_wizard_launcher.sh",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    @unittest.skipUnless(shutil.which("pwsh"), "PowerShell is not installed")
+    def test_stable_powershell_launcher_parses(self) -> None:
+        result = run_launcher(
+            "pwsh",
+            "-NoProfile",
+            "-Command",
+            (
+                "$errors = $null; "
+                "[System.Management.Automation.Language.Parser]::ParseFile("
+                "'launcher/blueprint_wizard_launcher.ps1', [ref]$null, "
+                "[ref]$errors) | Out-Null; "
+                "if ($errors.Count) { $errors | Out-String; exit 1 }"
+            ),
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
 
     @unittest.skipUnless(shutil.which("pwsh"), "PowerShell is not installed")
     def test_powershell_launcher_reports_current_version(self) -> None:
