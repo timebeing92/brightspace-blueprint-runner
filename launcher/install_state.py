@@ -6,8 +6,9 @@ import datetime as dt
 import json
 import os
 import re
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator, TextIO
 from urllib.parse import urlsplit
 
 POINTER_SCHEMA = "coursecraft.wizard_install_pointer/1"
@@ -23,6 +24,7 @@ DATA_ROOT_ENV = "BLUEPRINT_WIZARD_DATA_ROOT"
 OUTPUT_ROOT_ENV = "BLUEPRINT_WIZARD_OUTPUT_ROOT"
 MANAGED_VERSION_ENV = "BLUEPRINT_WIZARD_MANAGED_VERSION"
 LAUNCHER_PATH_ENV = "BLUEPRINT_WIZARD_LAUNCHER_PATH"
+INSTALL_LOCK_NAME = "install.lock"
 
 
 class InstallStateError(RuntimeError):
@@ -105,6 +107,75 @@ def ensure_install_directories(install_root: Path) -> None:
         "user-data/update-cache",
     ):
         (install_root / relative).mkdir(parents=True, exist_ok=True)
+
+
+def _try_lock(handle: TextIO) -> None:
+    try:
+        if os.name == "nt":
+            import msvcrt
+
+            handle.seek(0)
+            if not handle.read(1):
+                handle.seek(0)
+                handle.write(" ")
+                handle.flush()
+            handle.seek(0)
+            msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except (OSError, BlockingIOError) as exc:
+        raise InstallStateError(
+            "Another Wizard install, activation, or cleanup is already in progress"
+        ) from exc
+
+
+def _unlock(handle: TextIO) -> None:
+    try:
+        if os.name == "nt":
+            import msvcrt
+
+            handle.seek(0)
+            msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+    except OSError:
+        pass
+
+
+@contextmanager
+def install_lock(install_root: Path) -> Iterator[None]:
+    """Hold the cross-process lock for every managed-install mutation."""
+    ensure_install_directories(install_root)
+    path = install_root / "staging" / INSTALL_LOCK_NAME
+    try:
+        handle = path.open("a+", encoding="utf-8")
+    except OSError as exc:
+        raise InstallStateError(f"Could not open the Wizard install lock: {exc}") from exc
+    try:
+        _try_lock(handle)
+        handle.seek(0)
+        handle.truncate()
+        handle.write(
+            json.dumps(
+                {
+                    "pid": os.getpid(),
+                    "acquired_at_utc": utc_text(),
+                },
+                sort_keys=True,
+            )
+            + "\n"
+        )
+        handle.flush()
+        try:
+            yield
+        finally:
+            _unlock(handle)
+    finally:
+        handle.close()
 
 
 def validate_release_manifest(
@@ -214,7 +285,7 @@ def load_pointer(install_root: Path) -> dict[str, Any]:
     return pointer
 
 
-def activate_version(install_root: Path, version: str) -> dict[str, Any]:
+def _activate_version(install_root: Path, version: str) -> dict[str, Any]:
     ensure_install_directories(install_root)
     normalized = require_version(version)
     _, manifest = validate_installed_version(install_root, normalized)
@@ -240,16 +311,24 @@ def activate_version(install_root: Path, version: str) -> dict[str, Any]:
     return pointer
 
 
+def activate_version(install_root: Path, version: str) -> dict[str, Any]:
+    with install_lock(install_root):
+        return _activate_version(install_root, version)
+
+
 def rollback(install_root: Path) -> dict[str, Any]:
-    pointer = load_pointer(install_root)
-    previous = str(pointer.get("previous_version") or "")
-    if not previous:
-        raise InstallStateError("No previous Wizard version is available for rollback")
-    current = pointer["current_version"]
-    result = activate_version(install_root, previous)
-    if result.get("previous_version") != current:
-        raise InstallStateError("Rollback pointer did not preserve the prior current version")
-    return result
+    with install_lock(install_root):
+        pointer = load_pointer(install_root)
+        previous = str(pointer.get("previous_version") or "")
+        if not previous:
+            raise InstallStateError("No previous Wizard version is available for rollback")
+        current = pointer["current_version"]
+        result = _activate_version(install_root, previous)
+        if result.get("previous_version") != current:
+            raise InstallStateError(
+                "Rollback pointer did not preserve the prior current version"
+            )
+        return result
 
 
 def installed_versions(install_root: Path) -> list[str]:

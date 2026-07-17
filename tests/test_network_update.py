@@ -70,7 +70,11 @@ def test_network_delivery_cross_checks_api_sidecar_and_installs(
     assert result["delivery"] == "github_release"
     assert result["api_sha256"] == checksum
     assert install_state.load_pointer(install_root)["current_version"] == "2.8.0"
-    assert list((install_root / "staging").iterdir()) == []
+    assert [
+        path.name
+        for path in (install_root / "staging").iterdir()
+        if path.name != install_state.INSTALL_LOCK_NAME
+    ] == []
 
 
 def test_api_digest_sidecar_disagreement_never_installs(tmp_path: Path) -> None:
@@ -92,7 +96,11 @@ def test_api_digest_sidecar_disagreement_never_installs(tmp_path: Path) -> None:
     assert checksum != "0" * 64
     assert not (install_root / "versions" / "2.8.0").exists()
     assert not install_state.pointer_path(install_root).exists()
-    assert list((install_root / "staging").iterdir()) == []
+    assert [
+        path.name
+        for path in (install_root / "staging").iterdir()
+        if path.name != install_state.INSTALL_LOCK_NAME
+    ] == []
 
 
 def test_unexpected_asset_url_is_rejected_before_download(tmp_path: Path) -> None:

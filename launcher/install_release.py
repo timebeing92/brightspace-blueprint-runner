@@ -214,6 +214,24 @@ def install_release_zip(
         checksum_path=checksum_path.expanduser().resolve() if checksum_path else None,
     )
     install_state.ensure_install_directories(install_root)
+    with install_state.install_lock(install_root):
+        return _install_verified_release(
+            install_root,
+            archive_path,
+            checksum=checksum,
+            expected_version=expected_version,
+            activate=activate,
+        )
+
+
+def _install_verified_release(
+    install_root: Path,
+    archive_path: Path,
+    *,
+    checksum: str,
+    expected_version: str | None,
+    activate: bool,
+) -> dict[str, Any]:
 
     try:
         archive = zipfile.ZipFile(archive_path)
@@ -237,7 +255,7 @@ def install_release_zip(
                     )
                 install_state.validate_installed_version(install_root, version)
                 pointer = (
-                    install_state.activate_version(install_root, version)
+                    install_state._activate_version(install_root, version)
                     if activate
                     else None
                 )
@@ -276,7 +294,7 @@ def install_release_zip(
             )
             os.replace(extracted_root, destination)
             pointer = (
-                install_state.activate_version(install_root, version)
+                install_state._activate_version(install_root, version)
                 if activate
                 else None
             )

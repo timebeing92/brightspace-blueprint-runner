@@ -278,5 +278,43 @@ def test_post_extract_failure_cleans_staging_and_keeps_current(tmp_path: Path) -
         )
 
     assert install_state.load_pointer(install_root)["current_version"] == "2.7.0"
-    assert list((install_root / "staging").iterdir()) == []
+    assert [
+        path.name
+        for path in (install_root / "staging").iterdir()
+        if path.name != install_state.INSTALL_LOCK_NAME
+    ] == []
+    assert not (install_root / "versions" / "2.8.0").exists()
+
+
+def test_concurrent_install_is_refused_without_changing_current(
+    tmp_path: Path,
+) -> None:
+    first_zip, first_sidecar, _ = make_release_zip(
+        tmp_path,
+        "2.7.0",
+        runner_commit="1" * 40,
+        bundle_commit="2" * 40,
+    )
+    second_zip, second_sidecar, _ = make_release_zip(
+        tmp_path,
+        "2.8.0",
+        runner_commit="3" * 40,
+        bundle_commit="4" * 40,
+    )
+    install_root = tmp_path / "managed"
+    install_release.install_release_zip(
+        install_root,
+        first_zip,
+        checksum_path=first_sidecar,
+    )
+
+    with install_state.install_lock(install_root):
+        with pytest.raises(install_state.InstallStateError, match="already in progress"):
+            install_release.install_release_zip(
+                install_root,
+                second_zip,
+                checksum_path=second_sidecar,
+            )
+
+    assert install_state.load_pointer(install_root)["current_version"] == "2.7.0"
     assert not (install_root / "versions" / "2.8.0").exists()
