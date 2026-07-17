@@ -37,6 +37,16 @@ jobs:
           cd dist
           sha256sum -c *.sha256
         working-directory: runner
+      - name: Build unreleased managed review kit
+        run: |
+          bundle_sha=$(git -C ../bundle rev-parse HEAD)
+          python scripts/make_managed_review_kit.py \
+            --runner-ref "$GITHUB_SHA" \
+            --bundle-ref "$bundle_sha" \
+            --bundle-dir ../bundle
+          cd dist/review
+          sha256sum -c *.sha256
+        working-directory: runner
 
   managed-launcher-platforms:
     strategy:

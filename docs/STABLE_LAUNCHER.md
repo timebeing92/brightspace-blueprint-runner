@@ -63,6 +63,24 @@ until the current activation has a successful launch receipt. Settings, logs,
 outputs, update cache, and receipts are outside `versions/` and are never
 cleanup candidates.
 
+## Human review kit
+
+Do not hand reviewers the generic managed candidate from `dist/`. Build the
+one-unzip review kit from explicit clean commits instead:
+
+```bash
+python3 scripts/make_managed_review_kit.py \
+  --runner-ref "$(git rev-parse HEAD)" \
+  --bundle-ref "$(git -C ../brightspace-blueprint-bundle rev-parse HEAD)"
+```
+
+The output under `dist/review/` is prefixed `UNRELEASED`, omits the public
+version number from the outer filename, and contains the already-extracted
+candidate, tester checklist, report template, provenance receipt, install-tree
+hash manifest, and outer ZIP checksum. The kit also records that the current
+review build is unsigned and not notarized. Building a review kit does not
+create or authorize a release.
+
 ## Stable-launcher compatibility boundary
 
 The top-level launcher is smaller and more conservative than any versioned
