@@ -160,3 +160,14 @@ A fresh extraction passed top-level `--health`, `--list-versions`, and
 All recorded acceptance gates now pass. This proof authorizes review of a
 future versioned release; it does not authorize merging, tagging, publishing,
 or deleting the earlier public release.
+
+## Post-acceptance CI runtime maintenance
+
+GitHub subsequently annotated every job because `actions/checkout@v4` and
+`actions/setup-python@v5` still declared the deprecated Node.js 20 action
+runtime, even though hosted runners forced them onto Node.js 24 and the jobs
+passed. The workflow was moved to `actions/checkout@v6` and
+`actions/setup-python@v6`, whose supported runtime is Node.js 24. This is a CI
+maintenance change only; it does not alter the Wizard, bundle, contracts, or
+candidate lifecycle. The complete test/package and three-platform launcher
+matrix remains the required verification gate for the change.
