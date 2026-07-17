@@ -189,7 +189,7 @@ The wizard walks through:
 6. **Results** — a completion chime and "✦ The drafting is complete.", then
    the results card: total drafting time, weeks, QA break/warning/note
    counts, optional rubric count/artifacts including the rubric DOCX,
-   `Needs review` count, and the generated files with the main deliverable
+   `Needs review` count, the producer run-identity receipt, and the generated files with the main deliverable
    marked `← start here`; offers to open the folder or DOCX.
    If a step fails instead, the failure card names the failed step, shows
    the last output lines, and offers to open the full log.
@@ -297,6 +297,9 @@ need a Brightspace export or the sibling bundle checkout.
   `coursecraft.progress/1` event stream; the runner does not parse D2L XML or
   glob for rubric artifacts. When the bundle reports `outputs.rubrics_docx`,
   the results card shows the standalone rubric review document.
+- Run identity also comes only from `coursecraft.progress/1`; release ZIP
+  receipts now bind the activity, structure, and run schemas alongside the
+  blueprint, rubric, and progress schemas.
 - Normal runs have no LibreOffice or Poppler dependency. A pure-Python
   structural check of the DOCX (relationships, hyperlinks, tables, titles)
   runs automatically.

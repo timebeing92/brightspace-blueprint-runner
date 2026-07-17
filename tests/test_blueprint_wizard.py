@@ -419,6 +419,7 @@ def test_show_results_lists_rubric_docx(tmp_path: Path, capsys) -> None:
         "rubrics_docx": "demo__rubrics.docx",
         "rubrics_workbook": "demo__rubrics.xlsx",
         "rubrics_json": "demo__rubrics.json",
+        "run_identity": "demo__run_identity.json",
     }.items():
         path = bundle_dir / name
         path.write_text("demo", encoding="utf-8")
@@ -437,6 +438,8 @@ def test_show_results_lists_rubric_docx(tmp_path: Path, capsys) -> None:
     assert "Rubrics" in out
     assert "Rubrics DOCX" in out
     assert "demo__rubrics.docx" in out
+    assert "Run identity" in out
+    assert "demo__run_identity.json" in out
 
 
 def test_show_results_surfaces_partial_status_and_report(tmp_path: Path, capsys) -> None:

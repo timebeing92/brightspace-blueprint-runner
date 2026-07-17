@@ -982,6 +982,7 @@ def show_results(run_end: dict, log_path: Path, args: argparse.Namespace, elapse
         ("QA report", "qa_report", False),
         ("DOCX structure QA", "docx_structure_report", False),
         ("Pipeline status", "status_report", False),
+        ("Run identity", "run_identity", True),
     ):
         emphasis = "primary" if key == primary_key else ("dim" if quiet_row else "normal")
         row = _output_row(label, outputs.get(key), emphasis)

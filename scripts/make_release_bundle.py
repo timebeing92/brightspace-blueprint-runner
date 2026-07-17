@@ -144,8 +144,11 @@ def sha256_file(path: Path) -> str:
 def schema_receipt(bundle_root: Path) -> list[dict[str, str]]:
     rows = []
     for relative in (
+        "schemas/activities_schema.json",
         "schemas/blueprint_schema.json",
+        "schemas/run_identity_schema.json",
         "schemas/rubrics_schema.json",
+        "schemas/structure_schema.json",
         "schemas/progress_events_schema.json",
     ):
         path = bundle_root / relative

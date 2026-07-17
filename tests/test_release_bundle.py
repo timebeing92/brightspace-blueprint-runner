@@ -52,13 +52,19 @@ class RunnerReleaseBundleTests(unittest.TestCase):
             schemas = bundle / "schemas"
             schemas.mkdir()
             ids = [
+                "coursecraft.activities/1",
                 "coursecraft.blueprint/4",
+                "coursecraft.run/1",
                 "coursecraft.rubrics/1",
+                "coursecraft.structure/1",
                 "coursecraft.progress/1",
             ]
             names = [
+                "activities_schema.json",
                 "blueprint_schema.json",
+                "run_identity_schema.json",
                 "rubrics_schema.json",
+                "structure_schema.json",
                 "progress_events_schema.json",
             ]
             for name, schema_id in zip(names, ids, strict=True):
