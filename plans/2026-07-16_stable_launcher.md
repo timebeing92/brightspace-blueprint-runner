@@ -1,7 +1,8 @@
 # Stable Launcher And Versioned Update Plan
 
-Status: local development only; do not release until the acceptance gates below
-pass against a fixture release sequence and a real packaged Wizard.
+Status: implementation and fixture tests in progress on `feature/stable-launcher`;
+do not release until the acceptance gates below pass against a fixture release
+sequence and a real packaged Wizard.
 
 ## Objective
 
@@ -57,19 +58,19 @@ environment only after a newer version is proven.
 
 ## Implementation Stages
 
-1. Persistent-data separation
+1. Persistent-data separation — implemented and fixture-tested
    - Teach the runner to honor an explicit managed data root.
    - Put remembered answers, update cache, logs, and default output bundles
      beneath `user-data/` in managed mode.
    - Preserve current paths in portable mode.
 
-2. Stable launcher and pointer
+2. Stable launcher and pointer — implemented and fixture-tested
    - Validate `current.json` against a version-pointer schema.
    - Resolve only paths beneath `versions/`.
    - Validate the selected runner, bundle, and release manifest before launch.
    - Set managed data/output environment values and run the selected version.
 
-3. Side-by-side installer/updater
+3. Side-by-side installer/updater — implemented and fixture-tested
    - Accept a local release ZIP first so every mutation path is fixture-backed
      without network access.
    - Validate SHA-256, release manifest, expected version, safe ZIP members,
@@ -78,7 +79,7 @@ environment only after a newer version is proven.
      atomically update `current.json`.
    - Refuse to overwrite an existing version with different content.
 
-4. Health, restart, rollback, and retention
+4. Health, restart, rollback, and retention — implemented and fixture-tested
    - Record launch attempts and successful setup/health markers in receipts.
    - Expose version listing, activation, and rollback commands.
    - Keep current plus previous by default; make deletion explicit until the
@@ -86,7 +87,7 @@ environment only after a newer version is proven.
    - Add restart-to-complete only after macOS, Windows, and POSIX process
      behavior is covered.
 
-5. Network delivery
+5. Network delivery — implemented; live release proof pending
    - Connect the existing latest-release check to the local verified installer.
    - Download the release ZIP and compare both the API asset digest and sidecar
      checksum before calling the same local install path.
@@ -109,6 +110,18 @@ environment only after a newer version is proven.
 - A real release ZIP can be imported, launched, and rolled back locally.
 - The branch remains unreleased until the implementation log records the exact
   evidence for every gate.
+
+## Evidence Status
+
+- Green local automated suite: 63 tests as of the restart/retirement tranche.
+- Fixture A/B install, activation, restart, rollback, checksum failure,
+  untrusted manifest, traversal, incomplete extraction, existing-version
+  mismatch, concurrent mutation, and protected cleanup paths are covered.
+- A local managed v2.7.0 candidate has launched, resolved its paired runner and
+  bundle commits, created its private bundle environment, and passed `--doctor`.
+- Still required: rebuild the candidate from the completed branch, exercise a
+  real course export with outputs outside `versions/`, prove real release ZIP
+  import and rollback, and pass the launcher matrix on Windows/macOS/POSIX.
 
 ## Deferred Decisions
 

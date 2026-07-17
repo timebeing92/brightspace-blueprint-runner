@@ -29,8 +29,19 @@ The initial active version is v{version}. The launcher never mixes runner and
 bundle versions. Settings, logs, update cache, and generated outputs remain
 outside version folders so rollback and later cleanup cannot remove user work.
 
-This candidate is not a published release. Automatic update download, restart,
-and old-version deletion remain disabled until their acceptance gates pass.
+This candidate is not a published release. Its verified update, one-time
+restart, rollback, and protected cleanup paths are enabled for acceptance testing only.
+Do not distribute it until the recorded proof gates pass.
+
+Maintainer checks:
+
+  bash blueprint_wizard_launcher.sh --health
+  bash blueprint_wizard_launcher.sh --list-versions
+  bash blueprint_wizard_launcher.sh --rollback
+
+Old-version removal is always explicit. The active version can never be
+selected, and the rollback version stays protected until the replacement has
+completed a successful launch.
 """
 
 TOP_COMMAND = """\
