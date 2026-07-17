@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -228,6 +229,85 @@ def test_launcher_restarts_once_after_atomic_version_change(
     )
     assert '"status": "restart_requested"' in receipts
     assert '"status": "ok"' in receipts
+
+
+def test_restart_contract_works_across_real_child_processes(tmp_path: Path) -> None:
+    install_root = fixture_install(tmp_path)
+    install_state.activate_version(install_root, "2.7.0")
+    first_script = (
+        install_root
+        / "versions"
+        / "2.7.0"
+        / "brightspace-blueprint-runner"
+        / "scripts"
+        / "blueprint_wizard.py"
+    )
+    first_script.write_text(
+        """
+import json
+import os
+from pathlib import Path
+
+root = Path(os.environ["BLUEPRINT_WIZARD_INSTALL_ROOT"])
+path = root / "current.json"
+pointer = json.loads(path.read_text(encoding="utf-8"))
+pointer.update({
+    "current_version": "2.8.0",
+    "previous_version": "2.7.0",
+    "runner_commit": "3333333333333333333333333333333333333333",
+    "bundle_commit": "4444444444444444444444444444444444444444",
+})
+temporary = path.with_name("current.json.fixture.tmp")
+temporary.write_text(json.dumps(pointer), encoding="utf-8")
+os.replace(temporary, path)
+raise SystemExit(75)
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    second_script = (
+        install_root
+        / "versions"
+        / "2.8.0"
+        / "brightspace-blueprint-runner"
+        / "scripts"
+        / "blueprint_wizard.py"
+    )
+    second_script.write_text(
+        """
+import os
+from pathlib import Path
+
+data = Path(os.environ["BLUEPRINT_WIZARD_DATA_ROOT"])
+data.mkdir(parents=True, exist_ok=True)
+(data / "real_restart_complete.txt").write_text(
+    os.environ["BLUEPRINT_WIZARD_MANAGED_VERSION"],
+    encoding="utf-8",
+)
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(LAUNCHER / "stable_launcher.py"),
+            "--install-root",
+            str(install_root),
+            "--plain",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Restarting Blueprint Wizard in v2.8.0" in result.stdout
+    assert (install_root / "user-data" / "real_restart_complete.txt").read_text(
+        encoding="utf-8"
+    ) == "2.8.0"
 
 
 def test_restart_without_version_change_is_refused(
