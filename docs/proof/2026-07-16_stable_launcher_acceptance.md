@@ -1,7 +1,7 @@
 # Stable Launcher Acceptance Record — 2026-07-16
 
-Release state: **withheld**. The implementation is on
-`feature/stable-launcher`; no tag or GitHub release was created.
+Release state: **acceptance passed; publication withheld**. The implementation
+is on `feature/stable-launcher`; no tag or GitHub release was created.
 
 ## Identities
 
@@ -125,6 +125,38 @@ though the versioned Wizard source is UTF-8 and contains Unicode interface
 text. This prevented the Windows package from being built.
 
 The builder now requests UTF-8 explicitly from the git subprocess. A second
-full matrix must pass before the implementation is considered release-ready.
-A green matrix permits review and final candidate rebuilding; it does not
-itself authorize a release.
+full matrix was required before the implementation could be considered
+release-ready.
+
+## Platform matrix attempt 2
+
+GitHub Actions run `29548459164` at
+`1bbec06d69e35f5bb4acc9acec81f82f66915445` passed:
+
+- the full test and ordinary release-package job;
+- the selected 40-test managed lifecycle suite on Windows, macOS, and Ubuntu;
+- PowerShell parsing on Windows;
+- managed candidate build, extraction, health, and launched version checks on
+  Windows; and
+- managed candidate build, extraction, health, and launched version checks on
+  macOS and Ubuntu.
+
+Run URL:
+`https://github.com/timebeing92/brightspace-blueprint-runner/actions/runs/29548459164`
+
+## Final unreleased review candidate
+
+The final candidate was rebuilt from the exact green matrix commit and the
+same bundle release commit:
+
+- runner `1bbec06d69e35f5bb4acc9acec81f82f66915445`;
+- bundle `ec0ba6aad29cd24b0b54094ea69d6546648e526d`;
+- ZIP SHA-256
+  `437bb085ee56c84607bad90facccbc7273de15a5839fe2ff6187d99d71b502e0`.
+
+A fresh extraction passed top-level `--health`, `--list-versions`, and
+`--version`; the sidecar checksum matched a new SHA-256 calculation.
+
+All recorded acceptance gates now pass. This proof authorizes review of a
+future versioned release; it does not authorize merging, tagging, publishing,
+or deleting the earlier public release.

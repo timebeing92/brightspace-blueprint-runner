@@ -1,8 +1,7 @@
 # Stable Launcher And Versioned Update Plan
 
-Status: implementation and fixture tests in progress on `feature/stable-launcher`;
-do not release until the acceptance gates below pass against a fixture release
-sequence and a real packaged Wizard.
+Status: acceptance gates passed on `feature/stable-launcher`; release remains
+withheld pending human review and an explicit version/release decision.
 
 ## Objective
 
@@ -125,9 +124,13 @@ environment only after a newer version is proven.
   stayed under `user-data/`. Published v2.6.0 imported, launched, rolled back,
   and retired safely. The live GitHub path installed the published v2.7.0 ZIP
   only after its API digest and checksum agreed.
-- Still required: complete the feature-branch launcher matrix on
-  Windows/macOS/POSIX and rebuild the final review candidate after any changes
-  required by that matrix.
+- GitHub Actions run `29548459164` passed the full test/package job plus the
+  packaged-candidate launcher matrix on Windows, macOS, and Ubuntu.
+- Final unreleased review candidate: runner `1bbec06d69e35f5bb4acc9acec81f82f66915445`,
+  bundle `ec0ba6aad29cd24b0b54094ea69d6546648e526d`, ZIP SHA-256
+  `437bb085ee56c84607bad90facccbc7273de15a5839fe2ff6187d99d71b502e0`.
+- No acceptance gate remains open. Merge, version bump, release notes, and
+  publication are intentionally separate, human-gated work.
 
 ## Deferred Decisions
 
