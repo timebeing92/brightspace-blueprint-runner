@@ -64,6 +64,62 @@ def test_build_command_can_skip_docx_and_qa(tmp_path: Path) -> None:
     assert "--docx-section-layout" not in cmd
 
 
+def test_managed_mode_keeps_state_logs_and_outputs_outside_version(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    install_root = tmp_path / "Blueprint Wizard"
+    data = install_root / "user-data"
+    output = data / "outputs"
+    monkeypatch.setenv(wizard.INSTALL_ROOT_ENV, str(install_root))
+    monkeypatch.setenv(wizard.DATA_ROOT_ENV, str(data))
+    monkeypatch.setenv(wizard.OUTPUT_ROOT_ENV, str(output))
+
+    assert wizard.managed_mode()
+    assert wizard.state_path() == data / "settings" / "last_run.json"
+    assert wizard.update_cache_path() == data / "update-cache" / "release_check.json"
+    assert wizard.logs_dir() == data / "logs"
+    assert wizard.configured_output_root() == output
+
+    wizard.ensure_managed_data_dirs()
+    assert (data / "settings").is_dir()
+    assert (data / "logs").is_dir()
+    assert output.is_dir()
+    assert (data / "update-cache").is_dir()
+
+    options = {
+        "label": "managed",
+        "course_title": "",
+        "course_number": "",
+        "term": "",
+        "run_qa": True,
+        "check_external": False,
+        "render_docx": True,
+        "layout": "top",
+        "render_qa": False,
+    }
+    cmd = wizard.build_command(
+        tmp_path / "versions" / "2.8.0" / "brightspace-blueprint-bundle",
+        tmp_path / "course.zip",
+        options,
+    )
+    assert cmd[cmd.index("--output-dir") + 1] == str(output)
+
+
+def test_portable_mode_preserves_existing_local_paths(
+    monkeypatch,
+) -> None:
+    monkeypatch.delenv(wizard.INSTALL_ROOT_ENV, raising=False)
+    monkeypatch.delenv(wizard.DATA_ROOT_ENV, raising=False)
+    monkeypatch.delenv(wizard.OUTPUT_ROOT_ENV, raising=False)
+
+    assert not wizard.managed_mode()
+    assert wizard.state_path() == wizard.runner_root() / ".last_run.json"
+    assert wizard.update_cache_path() == wizard.runner_root() / ".update_check.json"
+    assert wizard.logs_dir() == wizard.runner_root() / "logs"
+    assert wizard.configured_output_root() is None
+
+
 def test_advanced_render_preview_requires_explicit_option(tmp_path: Path) -> None:
     options = {
         "label": "advanced_preview",

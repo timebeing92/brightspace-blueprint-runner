@@ -36,6 +36,11 @@ REQUIRED_MODULES = [
 ]
 VERSION = "2.7.0"
 
+INSTALL_ROOT_ENV = "BLUEPRINT_WIZARD_INSTALL_ROOT"
+DATA_ROOT_ENV = "BLUEPRINT_WIZARD_DATA_ROOT"
+OUTPUT_ROOT_ENV = "BLUEPRINT_WIZARD_OUTPUT_ROOT"
+MANAGED_VERSION_ENV = "BLUEPRINT_WIZARD_MANAGED_VERSION"
+
 # Minimum on-screen time per step in interactive runs, so the flavor line and
 # its animation register before the step flips to done. The pipeline itself is
 # not slowed — only the display. Eight steps add at most ~9 seconds.
@@ -76,12 +81,60 @@ def default_bundle_dir() -> Path:
     return runner_root().parent / "brightspace-blueprint-bundle"
 
 
+def configured_root(name: str) -> Path | None:
+    value = os.environ.get(name, "").strip()
+    return Path(value).expanduser().resolve() if value else None
+
+
+def managed_install_root() -> Path | None:
+    return configured_root(INSTALL_ROOT_ENV)
+
+
+def data_root() -> Path:
+    return configured_root(DATA_ROOT_ENV) or runner_root()
+
+
+def managed_mode() -> bool:
+    return managed_install_root() is not None
+
+
+def settings_dir() -> Path:
+    return data_root() / "settings" if managed_mode() else runner_root()
+
+
 def state_path() -> Path:
+    if managed_mode():
+        return settings_dir() / "last_run.json"
     return runner_root() / ".last_run.json"
 
 
 def update_cache_path() -> Path:
+    if managed_mode():
+        return data_root() / "update-cache" / "release_check.json"
     return runner_root() / ".update_check.json"
+
+
+def logs_dir() -> Path:
+    return data_root() / "logs" if managed_mode() else runner_root() / "logs"
+
+
+def configured_output_root() -> Path | None:
+    explicit = configured_root(OUTPUT_ROOT_ENV)
+    if explicit is not None:
+        return explicit
+    return data_root() / "outputs" if managed_mode() else None
+
+
+def ensure_managed_data_dirs() -> None:
+    if not managed_mode():
+        return
+    for path in (
+        settings_dir(),
+        data_root() / "logs",
+        data_root() / "outputs",
+        data_root() / "update-cache",
+    ):
+        path.mkdir(parents=True, exist_ok=True)
 
 
 def safe_label(name: str) -> str:
@@ -254,6 +307,8 @@ def preparation_checks(bundle: Path, args: argparse.Namespace) -> None:
     if not ensure_requirements(bundle, fix=True, assume_yes=args.yes):
         raise SystemExit("Cannot continue without the required Python packages.")
     print(ui.status_line(TERM, "ok", "Python packages", "openpyxl, python-docx, jsonschema"))
+    if managed_mode():
+        print(ui.status_line(TERM, "ok", "Managed user data", str(data_root())))
 
 
 def report_update_check(*, force: bool, offer_open: bool) -> None:
@@ -503,6 +558,7 @@ def load_last_answers() -> dict:
 
 def save_answers(options: dict) -> None:
     try:
+        state_path().parent.mkdir(parents=True, exist_ok=True)
         state_path().write_text(json.dumps(options, indent=2) + "\n", encoding="utf-8")
     except OSError:
         pass
@@ -669,12 +725,15 @@ def build_command(bundle: Path, export: Path, options: dict) -> list[str]:
         cmd.extend(["--docx-section-layout", options["layout"]])
     if options["render_qa"]:
         cmd.append("--render-docx-check")
+    output_root = configured_output_root()
+    if output_root is not None:
+        cmd.extend(["--output-dir", str(output_root)])
     return cmd
 
 
 def open_log(label: str) -> tuple[Path, "object"]:
-    log_dir = runner_root() / "logs"
-    log_dir.mkdir(exist_ok=True)
+    log_dir = logs_dir()
+    log_dir.mkdir(parents=True, exist_ok=True)
     stamp = _dt.datetime.now().strftime("%Y%m%d_%H%M%S")
     path = log_dir / f"blueprint_run_{stamp}_{label}.log"
     return path, path.open("w", encoding="utf-8")
@@ -929,6 +988,7 @@ def show_failure(
 # --------------------------------------------------------------------------- #
 def run_wizard(args: argparse.Namespace) -> int:
     bundle = args.bundle_dir.expanduser().resolve()
+    ensure_managed_data_dirs()
     PHASE["enabled"] = not args.yes
     PHASE["total"] = 4 - (1 if args.export else 0)
     PHASE["current"] = 0
@@ -1067,6 +1127,7 @@ def main(argv: list[str] | None = None) -> int:
         sys.stdout.reconfigure(line_buffering=True)
     args = parse_args(argv or sys.argv[1:])
     TERM = ui.Term(plain=args.plain)
+    ensure_managed_data_dirs()
     bundle = args.bundle_dir.expanduser().resolve()
     try:
         if args.check_for_updates:
@@ -1084,7 +1145,7 @@ def main(argv: list[str] | None = None) -> int:
         return run_wizard(args)
     except KeyboardInterrupt:
         TERM.show_cursor()
-        print("\n  Canceled. Any partial run log is under logs/.")
+        print(f"\n  Canceled. Any partial run log is under {logs_dir()}.")
         return 130
 
 
