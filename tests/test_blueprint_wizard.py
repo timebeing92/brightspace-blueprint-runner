@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -74,8 +75,13 @@ def test_managed_mode_keeps_state_logs_and_outputs_outside_version(
     monkeypatch.setenv(wizard.INSTALL_ROOT_ENV, str(install_root))
     monkeypatch.setenv(wizard.DATA_ROOT_ENV, str(data))
     monkeypatch.setenv(wizard.OUTPUT_ROOT_ENV, str(output))
+    launcher = install_root / "launcher" / "stable_launcher.py"
+    launcher.parent.mkdir(parents=True)
+    launcher.write_text("# fixture\n", encoding="utf-8")
+    monkeypatch.setenv(wizard.LAUNCHER_PATH_ENV, str(launcher))
 
     assert wizard.managed_mode()
+    assert wizard.managed_launcher_path() == launcher
     assert wizard.state_path() == data / "settings" / "last_run.json"
     assert wizard.update_cache_path() == data / "update-cache" / "release_check.json"
     assert wizard.logs_dir() == data / "logs"
@@ -112,12 +118,14 @@ def test_portable_mode_preserves_existing_local_paths(
     monkeypatch.delenv(wizard.INSTALL_ROOT_ENV, raising=False)
     monkeypatch.delenv(wizard.DATA_ROOT_ENV, raising=False)
     monkeypatch.delenv(wizard.OUTPUT_ROOT_ENV, raising=False)
+    monkeypatch.delenv(wizard.LAUNCHER_PATH_ENV, raising=False)
 
     assert not wizard.managed_mode()
     assert wizard.state_path() == wizard.runner_root() / ".last_run.json"
     assert wizard.update_cache_path() == wizard.runner_root() / ".update_check.json"
     assert wizard.logs_dir() == wizard.runner_root() / "logs"
     assert wizard.configured_output_root() is None
+    assert wizard.managed_launcher_path() is None
 
 
 def test_advanced_render_preview_requires_explicit_option(tmp_path: Path) -> None:
@@ -265,6 +273,84 @@ def test_forced_offline_update_check_reports_but_does_not_fail(
 
     assert "Update check unavailable" in out
     assert "still usable" in out
+
+
+def test_managed_update_installs_through_stable_launcher_and_requests_restart(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    wizard.TERM = ui.Term(plain=True)
+    install_root = tmp_path / "Blueprint Wizard"
+    launcher = install_root / "launcher" / "stable_launcher.py"
+    launcher.parent.mkdir(parents=True)
+    launcher.write_text("# fixture\n", encoding="utf-8")
+    monkeypatch.setenv(wizard.INSTALL_ROOT_ENV, str(install_root))
+    monkeypatch.setenv(wizard.LAUNCHER_PATH_ENV, str(launcher))
+    confirmations = iter([True, True])
+    monkeypatch.setattr(
+        wizard.ui,
+        "confirm",
+        lambda *args, **kwargs: next(confirmations),
+    )
+    commands: list[list[str]] = []
+
+    def fake_run(command, *, check):
+        commands.append(command)
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(wizard.subprocess, "run", fake_run)
+    monkeypatch.setattr(wizard, "update_cache_path", lambda: tmp_path / "cache.json")
+    monkeypatch.setattr(
+        wizard.update_check,
+        "check_latest_release",
+        lambda **kwargs: update_check.UpdateStatus(
+            state="update_available",
+            current_version=wizard.VERSION,
+            latest_version="2.8.0",
+            latest_tag="v2.8.0",
+            release_name="Blueprint Wizard v2.8.0",
+            release_url="https://github.com/timebeing92/releases/tag/v2.8.0",
+        ),
+    )
+    monkeypatch.setattr(wizard.update_check, "notice_is_due", lambda *args, **kwargs: True)
+    monkeypatch.setattr(wizard.update_check, "mark_notified", lambda *args, **kwargs: None)
+
+    restart = wizard.report_update_check(force=True, offer_open=True)
+
+    assert restart is True
+    assert commands == [
+        [
+            sys.executable,
+            str(launcher),
+            "--install-root",
+            str(install_root),
+            "--update",
+            "--expected-version",
+            "2.8.0",
+        ]
+    ]
+
+
+def test_managed_update_failure_keeps_running_version_active(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    wizard.TERM = ui.Term(plain=True)
+    install_root = tmp_path / "Blueprint Wizard"
+    launcher = install_root / "launcher" / "stable_launcher.py"
+    launcher.parent.mkdir(parents=True)
+    launcher.write_text("# fixture\n", encoding="utf-8")
+    monkeypatch.setenv(wizard.INSTALL_ROOT_ENV, str(install_root))
+    monkeypatch.setenv(wizard.LAUNCHER_PATH_ENV, str(launcher))
+    monkeypatch.setattr(
+        wizard.subprocess,
+        "run",
+        lambda command, *, check: subprocess.CompletedProcess(command, 1),
+    )
+
+    assert wizard.install_managed_update("2.8.0") is False
+    assert "current Wizard remains active" in capsys.readouterr().out
 
 
 def test_run_pipeline_consumes_progress_events(tmp_path: Path, monkeypatch) -> None:

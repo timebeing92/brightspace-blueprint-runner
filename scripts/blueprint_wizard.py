@@ -40,6 +40,8 @@ INSTALL_ROOT_ENV = "BLUEPRINT_WIZARD_INSTALL_ROOT"
 DATA_ROOT_ENV = "BLUEPRINT_WIZARD_DATA_ROOT"
 OUTPUT_ROOT_ENV = "BLUEPRINT_WIZARD_OUTPUT_ROOT"
 MANAGED_VERSION_ENV = "BLUEPRINT_WIZARD_MANAGED_VERSION"
+LAUNCHER_PATH_ENV = "BLUEPRINT_WIZARD_LAUNCHER_PATH"
+RESTART_EXIT_CODE = 75
 
 # Minimum on-screen time per step in interactive runs, so the flavor line and
 # its animation register before the step flips to done. The pipeline itself is
@@ -88,6 +90,15 @@ def configured_root(name: str) -> Path | None:
 
 def managed_install_root() -> Path | None:
     return configured_root(INSTALL_ROOT_ENV)
+
+
+def managed_launcher_path() -> Path | None:
+    install_root = managed_install_root()
+    configured = configured_root(LAUNCHER_PATH_ENV)
+    if install_root is None or configured is None:
+        return None
+    expected = (install_root / "launcher" / "stable_launcher.py").resolve()
+    return configured if configured == expected and configured.is_file() else None
 
 
 def data_root() -> Path:
@@ -311,7 +322,56 @@ def preparation_checks(bundle: Path, args: argparse.Namespace) -> None:
         print(ui.status_line(TERM, "ok", "Managed user data", str(data_root())))
 
 
-def report_update_check(*, force: bool, offer_open: bool) -> None:
+def install_managed_update(version: str) -> bool:
+    """Install one verified release and report whether the user wants restart."""
+    install_root = managed_install_root()
+    launcher = managed_launcher_path()
+    if install_root is None or launcher is None:
+        print(
+            TERM.warn(
+                "  The managed updater is unavailable because the stable launcher "
+                "could not be verified. The current Wizard was not changed."
+            )
+        )
+        return False
+    command = [
+        sys.executable,
+        str(launcher),
+        "--install-root",
+        str(install_root),
+        "--update",
+        "--expected-version",
+        version,
+    ]
+    print(TERM.secondary(f"  Downloading and verifying Blueprint Wizard v{version}…"))
+    result = subprocess.run(command, check=False)
+    if result.returncode != 0:
+        print(
+            TERM.warn(
+                "  The update was not installed. The current Wizard remains active."
+            )
+        )
+        return False
+    print()
+    print(
+        ui.card(
+            TERM,
+            "Update ready",
+            [
+                ("Installed", TERM.bold(f"v{version}")),
+                ("Rollback", "The previous complete version is still available."),
+                ("User work", "Settings and outputs were left in place."),
+            ],
+        )
+    )
+    return ui.confirm(
+        TERM,
+        f"Restart into v{version} now?",
+        default=True,
+    )
+
+
+def report_update_check(*, force: bool, offer_open: bool) -> bool:
     """Report a newer published Wizard release without blocking normal use."""
     cache_path = update_cache_path()
     status = update_check.check_latest_release(
@@ -336,7 +396,7 @@ def report_update_check(*, force: bool, offer_open: bool) -> None:
                     ],
                 )
             )
-        return
+        return False
 
     if not status.update_available:
         if force:
@@ -356,13 +416,13 @@ def report_update_check(*, force: bool, offer_open: bool) -> None:
                     ],
                 )
             )
-        return
+        return False
 
     if not force and not update_check.notice_is_due(
         cache_path,
         latest_version=status.latest_version,
     ):
-        return
+        return False
 
     rows = [
         ("Installed", f"v{VERSION}"),
@@ -385,6 +445,14 @@ def report_update_check(*, force: bool, offer_open: bool) -> None:
         cache_path,
         latest_version=status.latest_version,
     )
+    if managed_mode():
+        if offer_open and ui.confirm(
+            TERM,
+            f"Install verified v{status.latest_version} beside the current version?",
+            default=False,
+        ):
+            return install_managed_update(status.latest_version)
+        return False
     if offer_open and ui.confirm(
         TERM,
         "Open the verified release page now?",
@@ -396,6 +464,7 @@ def report_update_check(*, force: bool, offer_open: bool) -> None:
             opened = False
         if not opened:
             print(TERM.secondary(f"  Open this page: {status.release_url}"))
+    return False
 
 
 def print_doctor(bundle: Path) -> int:
@@ -1004,7 +1073,8 @@ def run_wizard(args: argparse.Namespace) -> int:
         and sys.stdin.isatty()
         and sys.stdout.isatty()
     ):
-        report_update_check(force=False, offer_open=True)
+        if report_update_check(force=False, offer_open=True):
+            return RESTART_EXIT_CODE
 
     export = prompt_export(args)
     peek = peek_export(export)
@@ -1131,11 +1201,11 @@ def main(argv: list[str] | None = None) -> int:
     bundle = args.bundle_dir.expanduser().resolve()
     try:
         if args.check_for_updates:
-            report_update_check(
+            restart = report_update_check(
                 force=True,
                 offer_open=not args.yes and sys.stdin.isatty(),
             )
-            return 0
+            return RESTART_EXIT_CODE if restart else 0
         if args.doctor:
             validate_bundle(bundle)
             if args.fix:

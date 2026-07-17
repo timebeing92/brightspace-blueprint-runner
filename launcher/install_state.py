@@ -6,6 +6,7 @@ import datetime as dt
 import json
 import os
 import re
+import shutil
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator, TextIO
@@ -14,6 +15,7 @@ from urllib.parse import urlsplit
 POINTER_SCHEMA = "coursecraft.wizard_install_pointer/1"
 RELEASE_SCHEMA = "coursecraft.runner_release/1"
 LAUNCH_RECEIPT_SCHEMA = "coursecraft.wizard_launch/1"
+RETIRE_RECEIPT_SCHEMA = "coursecraft.wizard_version_retire/1"
 LAUNCHER_PROTOCOL = 1
 
 RUNNER_REPOSITORY = "github.com/timebeing92/brightspace-blueprint-runner"
@@ -345,6 +347,80 @@ def installed_versions(install_root: Path) -> list[str]:
             continue
         versions.append(path.name)
     return sorted(versions, key=lambda value: version_tuple(value) or (0, 0, 0))
+
+
+def current_activation_is_proven(
+    install_root: Path,
+    pointer: dict[str, Any] | None = None,
+) -> bool:
+    pointer = pointer or load_pointer(install_root)
+    current = str(pointer["current_version"])
+    activated_at = str(pointer.get("activated_at_utc") or "")
+    path = install_root / "receipts" / "launches.jsonl"
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return False
+    for line in reversed(lines):
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(record, dict):
+            continue
+        if (
+            record.get("schema") == LAUNCH_RECEIPT_SCHEMA
+            and record.get("event") == "launch_end"
+            and record.get("version") == current
+            and record.get("status") == "ok"
+            and str(record.get("recorded_at_utc") or "") >= activated_at
+        ):
+            return True
+    return False
+
+
+def remove_version(install_root: Path, version: str) -> dict[str, Any]:
+    """Explicitly retire one non-current version without touching user data."""
+    normalized = require_version(version)
+    with install_lock(install_root):
+        pointer = load_pointer(install_root)
+        if normalized == pointer["current_version"]:
+            raise InstallStateError("The current Wizard version cannot be removed")
+        if normalized == pointer.get("previous_version") and not current_activation_is_proven(
+            install_root,
+            pointer,
+        ):
+            raise InstallStateError(
+                "The rollback version is protected until the current version launches successfully"
+            )
+        target, manifest = validate_installed_version(install_root, normalized)
+        versions_root = (install_root / "versions").resolve()
+        if target.is_symlink() or target.parent.resolve() != versions_root:
+            raise InstallStateError("Version cleanup target is not a direct installed version")
+
+        if normalized == pointer.get("previous_version"):
+            updated = {
+                **pointer,
+                "previous_version": "",
+                "updated_at_utc": utc_text(),
+            }
+            atomic_write_json(pointer_path(install_root), updated)
+        try:
+            shutil.rmtree(target)
+        except OSError as exc:
+            raise InstallStateError(f"Could not remove Wizard v{normalized}: {exc}") from exc
+        receipt = {
+            "schema": RETIRE_RECEIPT_SCHEMA,
+            "recorded_at_utc": utc_text(),
+            "version": normalized,
+            "runner_commit": manifest["runner"]["commit"],
+            "bundle_commit": manifest["bundle"]["commit"],
+        }
+        atomic_write_json(
+            install_root / "receipts" / f"retired-v{normalized}.json",
+            receipt,
+        )
+        return receipt
 
 
 def managed_environment(

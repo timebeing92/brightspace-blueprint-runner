@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -200,3 +201,91 @@ def test_version_listing_ignores_invalid_directories(tmp_path: Path) -> None:
     broken.mkdir(parents=True)
 
     assert install_state.installed_versions(install_root) == ["2.7.0", "2.8.0"]
+
+
+def test_launcher_restarts_once_after_atomic_version_change(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    install_root = fixture_install(tmp_path)
+    install_state.activate_version(install_root, "2.7.0")
+    launched: list[str] = []
+
+    def fake_run(command, *, env, check):
+        version = env[install_state.MANAGED_VERSION_ENV]
+        launched.append(version)
+        if version == "2.7.0":
+            install_state.activate_version(install_root, "2.8.0")
+            return subprocess.CompletedProcess(command, stable_launcher.RESTART_EXIT_CODE)
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(stable_launcher.subprocess, "run", fake_run)
+
+    assert stable_launcher.launch(install_root, ["--plain"]) == 0
+    assert launched == ["2.7.0", "2.8.0"]
+    receipts = (install_root / "receipts" / "launches.jsonl").read_text(
+        encoding="utf-8"
+    )
+    assert '"status": "restart_requested"' in receipts
+    assert '"status": "ok"' in receipts
+
+
+def test_restart_without_version_change_is_refused(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    install_root = fixture_install(tmp_path)
+    install_state.activate_version(install_root, "2.7.0")
+    monkeypatch.setattr(
+        stable_launcher.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args[0], stable_launcher.RESTART_EXIT_CODE
+        ),
+    )
+
+    assert stable_launcher.launch(install_root, []) == 1
+
+
+def test_cleanup_protects_current_and_unproven_rollback_version(
+    tmp_path: Path,
+) -> None:
+    install_root = fixture_install(tmp_path)
+    install_state.activate_version(install_root, "2.7.0")
+    install_state.activate_version(install_root, "2.8.0")
+
+    with pytest.raises(install_state.InstallStateError, match="current.*cannot"):
+        install_state.remove_version(install_root, "2.8.0")
+    with pytest.raises(install_state.InstallStateError, match="rollback.*protected"):
+        install_state.remove_version(install_root, "2.7.0")
+
+    assert (install_root / "versions" / "2.7.0").is_dir()
+    assert (install_root / "versions" / "2.8.0").is_dir()
+
+
+def test_explicit_cleanup_can_retire_rollback_after_current_launch_succeeds(
+    tmp_path: Path,
+) -> None:
+    install_root = fixture_install(tmp_path)
+    install_state.activate_version(install_root, "2.7.0")
+    install_state.activate_version(install_root, "2.8.0")
+    sentinel = install_root / "user-data" / "outputs" / "keep-me.txt"
+    sentinel.parent.mkdir(parents=True, exist_ok=True)
+    sentinel.write_text("user work\n", encoding="utf-8")
+    install_state.append_launch_receipt(
+        install_root,
+        {
+            "event": "launch_end",
+            "version": "2.8.0",
+            "exit_code": 0,
+            "status": "ok",
+        },
+    )
+
+    receipt = install_state.remove_version(install_root, "2.7.0")
+
+    assert receipt["version"] == "2.7.0"
+    assert not (install_root / "versions" / "2.7.0").exists()
+    assert install_state.load_pointer(install_root)["previous_version"] == ""
+    assert sentinel.read_text(encoding="utf-8") == "user work\n"
+    assert (install_root / "receipts" / "retired-v2.7.0.json").is_file()

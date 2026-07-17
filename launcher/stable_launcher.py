@@ -11,8 +11,11 @@ from pathlib import Path
 
 import install_state
 import install_release
+import network_update
 
 LAUNCHER_VERSION = "0.1.0-dev"
+RESTART_EXIT_CODE = 75
+MAX_RESTARTS = 1
 
 
 def default_install_root() -> Path:
@@ -53,26 +56,50 @@ def current_command(
 
 def launch(install_root: Path, wizard_args: list[str]) -> int:
     install_state.ensure_install_directories(install_root)
-    version, command, environment = current_command(install_root, wizard_args)
-    install_state.append_launch_receipt(
-        install_root,
-        {
-            "event": "launch_start",
-            "version": version,
-            "command": command,
-        },
-    )
-    result = subprocess.run(command, env=environment, check=False)
-    install_state.append_launch_receipt(
-        install_root,
-        {
-            "event": "launch_end",
-            "version": version,
-            "exit_code": result.returncode,
-            "status": "ok" if result.returncode == 0 else "error",
-        },
-    )
-    return result.returncode
+    restarts = 0
+    while True:
+        version, command, environment = current_command(install_root, wizard_args)
+        install_state.append_launch_receipt(
+            install_root,
+            {
+                "event": "launch_start",
+                "version": version,
+                "command": command,
+            },
+        )
+        result = subprocess.run(command, env=environment, check=False)
+        status = (
+            "restart_requested"
+            if result.returncode == RESTART_EXIT_CODE
+            else ("ok" if result.returncode == 0 else "error")
+        )
+        install_state.append_launch_receipt(
+            install_root,
+            {
+                "event": "launch_end",
+                "version": version,
+                "exit_code": result.returncode,
+                "status": status,
+            },
+        )
+        if result.returncode != RESTART_EXIT_CODE:
+            return result.returncode
+        next_version = install_state.load_pointer(install_root)["current_version"]
+        if next_version == version:
+            print(
+                "Stable launcher error: restart was requested without activating "
+                "a different version",
+                file=sys.stderr,
+            )
+            return 1
+        if restarts >= MAX_RESTARTS:
+            print(
+                "Stable launcher error: the one permitted update restart was already used",
+                file=sys.stderr,
+            )
+            return 1
+        restarts += 1
+        print(f"Restarting Blueprint Wizard in v{next_version}…")
 
 
 def print_versions(install_root: Path) -> int:
@@ -105,7 +132,9 @@ def parse_args(argv: list[str]) -> tuple[argparse.Namespace, list[str]]:
     parser.add_argument("--list-versions", action="store_true")
     parser.add_argument("--activate", metavar="VERSION")
     parser.add_argument("--rollback", action="store_true")
+    parser.add_argument("--remove-version", metavar="VERSION")
     parser.add_argument("--health", action="store_true")
+    parser.add_argument("--update", action="store_true")
     parser.add_argument("--install-release", type=Path, metavar="ZIP")
     verification = parser.add_mutually_exclusive_group()
     verification.add_argument("--sha256")
@@ -131,6 +160,10 @@ def main(argv: list[str] | None = None) -> int:
         if args.rollback:
             pointer = install_state.rollback(install_root)
             print(json.dumps(pointer, indent=2, sort_keys=True))
+            return 0
+        if args.remove_version:
+            receipt = install_state.remove_version(install_root, args.remove_version)
+            print(json.dumps(receipt, indent=2, sort_keys=True))
             return 0
         if args.health:
             pointer = install_state.load_pointer(install_root)
@@ -164,6 +197,13 @@ def main(argv: list[str] | None = None) -> int:
                 checksum_path=args.checksum,
                 expected_version=args.expected_version,
                 activate=not args.no_activate,
+            )
+            print(json.dumps(result, indent=2, sort_keys=True))
+            return 0
+        if args.update:
+            result = network_update.download_and_install_latest(
+                install_root,
+                expected_version=args.expected_version,
             )
             print(json.dumps(result, indent=2, sort_keys=True))
             return 0
