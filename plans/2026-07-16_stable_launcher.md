@@ -113,15 +113,21 @@ environment only after a newer version is proven.
 
 ## Evidence Status
 
-- Green local automated suite: 63 tests as of the restart/retirement tranche.
+- Green local automated suite: 64 tests, including a real child-process restart
+  across the atomic version change.
 - Fixture A/B install, activation, restart, rollback, checksum failure,
   untrusted manifest, traversal, incomplete extraction, existing-version
   mismatch, concurrent mutation, and protected cleanup paths are covered.
 - A local managed v2.7.0 candidate has launched, resolved its paired runner and
   bundle commits, created its private bundle environment, and passed `--doctor`.
-- Still required: rebuild the candidate from the completed branch, exercise a
-  real course export with outputs outside `versions/`, prove real release ZIP
-  import and rollback, and pass the launcher matrix on Windows/macOS/POSIX.
+- Passed locally: the rebuilt managed candidate processed the SSWO 565 export
+  with 19 rubrics and 0 DOCX structural breaks/warnings; all outputs and logs
+  stayed under `user-data/`. Published v2.6.0 imported, launched, rolled back,
+  and retired safely. The live GitHub path installed the published v2.7.0 ZIP
+  only after its API digest and checksum agreed.
+- Still required: complete the feature-branch launcher matrix on
+  Windows/macOS/POSIX and rebuild the final review candidate after any changes
+  required by that matrix.
 
 ## Deferred Decisions
 
