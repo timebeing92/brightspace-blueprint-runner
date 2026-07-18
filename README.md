@@ -1,11 +1,13 @@
-# Brightspace Blueprint Runner
+# Blueprint Wizard
 
-Current version: **2.8.0**
+Blueprint Wizard turns a Brightspace/D2L course export into a comprehensive,
+review-ready course blueprint. It gathers course structure, activities,
+rubrics, QA findings, and source-traceable run evidence through one guided
+workflow.
 
-The v2.8.0 release includes Blueprint Bundle v1.3.0. Published ZIP SHA-256:
-
-- managed: `92056a7ec1cf174788883c0813f2d6abac223e4d4a7cd47d7522ef1017827541`
-- portable: `8f7998a153103d059cfeb0d9cd1c36dc6d885e85596a3e95d093d7795de94669`
+Everything runs locally on your computer through Python scripts and
+libraries. Course materials are not sent to an AI service—there is **no AI in
+the extraction pipeline**.
 
 ```text
          ▄                           ▄
@@ -24,9 +26,21 @@ The v2.8.0 release includes Blueprint Bundle v1.3.0. Published ZIP SHA-256:
 
       B L U E P R I N T   W I Z A R D
 ```
-Transmute a D2L/Brightspace export into a comprehensive, cleanly formatted
-course blueprint. Runs completely locally through Python scripts and
-libraries. **No AI whatsoever**.
+
+## What it produces
+
+Depending on the source export and selected options, a run can produce:
+
+- a cleanly formatted course blueprint in Word and Markdown;
+- structured course-activity, course-structure, and rubric files;
+- QA reports that identify breaks, warnings, and items needing review; and
+- a checksum-backed run receipt connecting the deliverables to their source
+  export and exact extraction-tool versions.
+
+If a recoverable component or QA step fails, the Wizard preserves the usable
+deliverables, labels the run **Partial**, and explains what may need review.
+
+## How the parts fit
 
 A one-terminal wizard for the adjacent [brightspace-blueprint-bundle](https://github.com/timebeing92/brightspace-blueprint-bundle) project:
 it checks the machine, prepares the bundle's `.venv`, walks through the
@@ -35,54 +49,14 @@ with a results card. The pipeline itself lives entirely in the bundle — the
 wizard wraps its CLI and consumes its progress-event contract
 (`coursecraft.progress/1`); it never re-implements extraction logic.
 
-Starting in v2.5.1, a recoverable component or QA failure no longer hides a
-usable blueprint. The results card labels the run **Partial**, lists the
-affected steps, links the pipeline-status report, and still presents every
-Markdown, DOCX, workbook, rubric, and QA artifact that was successfully
-produced.
+## Current release
 
-v2.5.2 verifies the runner-folder launch surface itself: the macOS and POSIX
-launchers execute the current wizard, the Windows batch file delegates and
-preserves its exit status, and the PowerShell launcher safely retains both
-one-part commands such as `python3` and two-part commands such as `py -3.12`.
-The curl installer now installs a generated, commit-verified runner/bundle
-pair and records the installed identities instead of pulling two unrelated
-moving branch heads.
-
-v2.5.3 improves terminal readability. Interactive choice/default cues such as
-`[y/N]`, `[Y/n]`, and `(default)`, along with the active-step narration such as
-“The wizard holds the scroll to the light…”, now use the terminal's normal
-foreground intensity instead of ANSI dim/faint styling. Decorative metadata
-and raw diagnostic output remain subdued.
-
-v2.5.4 extends that readability pass to course-preview lists. Module titles and
-the “+N more” line in “The wizard peers into the scroll” now use a legible
-steel blue instead of dim gray, preserving separation from the card's white
-labels and borders.
-
-v2.6.0 removes LibreOffice, Poppler, and `pdf2image` from the ordinary Wizard
-workflow. Default pure-Python structural DOCX QA remains enabled. The Wizard no
-longer checks, prompts, or offers to install visual-render tools, and the
-commission no longer includes a visual-render question. The existing
-`--render-docx-check` flag remains available only as an explicit maintainer
-preview whose generated pages require human inspection.
-
-v2.7.0 adds a quiet release check for colleagues using the one-download ZIP.
-After ordinary setup succeeds, an interactive Wizard checks GitHub at most
-once per day and displays a clear card when a newer verified Wizard release is
-available. The check uses no account or token, never replaces local files, and
-cannot block blueprint generation when the network is offline. Users can open
-the release page from the card, force a check with `--check-for-updates`, or
-disable automatic checks with `--no-update-check`.
-
-v2.8.0 adds the stable managed launcher. Complete Runner/Bundle pairs install
-side by side, a small atomic pointer selects the active version, and settings,
-logs, update evidence, and generated outputs remain outside replaceable version
-folders. After confirmation, managed installations download and verify a new
-release, activate it, and restart once while keeping the previous complete
-version available for rollback. The portable one-folder ZIP remains supported.
-This release also carries Bundle v1.3.0's run-identity contracts and resilient
-direct-or-nested linked-syllabus supplementation.
+The current release is **Blueprint Wizard v2.8.0**, paired with **Blueprint
+Bundle v1.3.0**. Most users should choose the managed release ZIP described
+below. See the [v2.8.0 release notes](docs/releases/v2.8.0.md) for checksums,
+verification evidence, and exact component identities. Version-by-version
+changes now live in the [changelog](CHANGELOG.md) rather than interrupting this
+guide.
 
 > [!IMPORTANT]
 > Do not use GitHub's green **Code -> Download ZIP** button as the one-download
