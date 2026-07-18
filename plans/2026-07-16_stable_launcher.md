@@ -1,8 +1,8 @@
 # Stable Launcher And Versioned Update Plan
 
-Status: acceptance gates passed on `feature/stable-launcher`; Blueprint Wizard
-v2.8.0 was selected and publication was explicitly authorized on 2026-07-17.
-The public release and live-asset verification are recorded separately.
+Status: released and live-asset verified as Blueprint Wizard v2.8.0 on
+2026-07-17. See `docs/proof/2026-07-17_v2.8.0_release.md` for the immutable
+source pair, public hashes, CI runs, clean-install proof, and live update proof.
 
 ## Objective
 
@@ -87,7 +87,7 @@ environment only after a newer version is proven.
    - Add restart-to-complete only after macOS, Windows, and POSIX process
      behavior is covered.
 
-5. Network delivery — implemented; release publication and live proof pending
+5. Network delivery — implemented and live-release verified
    - Connect the existing latest-release check to the local verified installer.
    - Download the release ZIP and compare both the API asset digest and sidecar
      checksum before calling the same local install path.
@@ -130,9 +130,8 @@ environment only after a newer version is proven.
 - Final unreleased review candidate: runner `1bbec06d69e35f5bb4acc9acec81f82f66915445`,
   bundle `ec0ba6aad29cd24b0b54094ea69d6546648e526d`, ZIP SHA-256
   `437bb085ee56c84607bad90facccbc7273de15a5839fe2ff6187d99d71b502e0`.
-- No acceptance gate remains open. The version bump, release notes, and
-  publication decision are now recorded; live artifact verification remains a
-  separate release receipt.
+- No acceptance gate remains open. Publication and live artifact verification
+  are recorded in `docs/proof/2026-07-17_v2.8.0_release.md`.
 
 ## Deferred Decisions
 

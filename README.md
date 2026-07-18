@@ -2,8 +2,10 @@
 
 Current version: **2.8.0**
 
-The v2.8.0 release includes Blueprint Bundle v1.3.0. Independent SHA-256
-sidecars are published beside both the managed and portable ZIP assets.
+The v2.8.0 release includes Blueprint Bundle v1.3.0. Published ZIP SHA-256:
+
+- managed: `92056a7ec1cf174788883c0813f2d6abac223e4d4a7cd47d7522ef1017827541`
+- portable: `8f7998a153103d059cfeb0d9cd1c36dc6d885e85596a3e95d093d7795de94669`
 
 ```text
          ▄                           ▄
