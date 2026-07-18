@@ -200,6 +200,7 @@ def bundle_capabilities(bundle_root: Path) -> dict[str, dict[str, Any]]:
             "collect_syllabus_supplements",
             "supplemental_linked_syllabus",
             "DEFAULT_SYLLABUS_HOSTS",
+            "package_html_link",
         ),
     }
     for relative, markers in required_markers.items():
@@ -216,6 +217,10 @@ def bundle_capabilities(bundle_root: Path) -> dict[str, dict[str, Any]]:
             "evidence_role": "supplemental_linked_syllabus",
             "primary_authority": "package_local_export",
             "network_boundary": "allowlisted_best_effort_nonfatal",
+            "discovery_shapes": [
+                "manifest_item_link",
+                "package_html_link",
+            ],
             "runtime_files": [
                 "brightspace-blueprint-bundle/scripts/build_blueprint_bundle.py",
                 "brightspace-blueprint-bundle/scripts/reconstruct_course_structure.py",

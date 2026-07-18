@@ -242,6 +242,7 @@ def test_linked_syllabus_release_capability_is_validated_when_declared(tmp_path:
             "evidence_role": "supplemental_linked_syllabus",
             "primary_authority": "package_local_export",
             "network_boundary": "allowlisted_best_effort_nonfatal",
+            "discovery_shapes": ["manifest_item_link", "package_html_link"],
             "runtime_files": [
                 "brightspace-blueprint-bundle/scripts/build_blueprint_bundle.py",
                 "brightspace-blueprint-bundle/scripts/reconstruct_course_structure.py",
@@ -261,6 +262,19 @@ def test_linked_syllabus_release_capability_is_validated_when_declared(tmp_path:
     with pytest.raises(install_state.InstallStateError, match="unsupported linked-syllabus"):
         install_state.validate_release_manifest(root, expected_version="2.7.0")
 
+    manifest["capabilities"]["linked_syllabus_supplement"]["primary_authority"] = (
+        "package_local_export"
+    )
+    manifest["capabilities"]["linked_syllabus_supplement"]["discovery_shapes"] = [
+        "manifest_item_link"
+    ]
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    with pytest.raises(
+        install_state.InstallStateError,
+        match="unsupported linked-syllabus discovery shapes",
+    ):
+        install_state.validate_release_manifest(root, expected_version="2.7.0")
+
 
 def test_linked_syllabus_capability_requires_both_runtime_receipts(tmp_path: Path) -> None:
     install_root = tmp_path / "Blueprint Wizard"
@@ -278,6 +292,7 @@ def test_linked_syllabus_capability_requires_both_runtime_receipts(tmp_path: Pat
             "evidence_role": "supplemental_linked_syllabus",
             "primary_authority": "package_local_export",
             "network_boundary": "allowlisted_best_effort_nonfatal",
+            "discovery_shapes": ["manifest_item_link", "package_html_link"],
             "runtime_files": [
                 "brightspace-blueprint-bundle/scripts/build_blueprint_bundle.py",
                 "brightspace-blueprint-bundle/scripts/reconstruct_course_structure.py",

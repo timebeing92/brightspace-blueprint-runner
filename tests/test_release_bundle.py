@@ -111,7 +111,7 @@ class RunnerReleaseBundleTests(unittest.TestCase):
             )
             (scripts / "reconstruct_course_structure.py").write_text(
                 "collect_syllabus_supplements\nsupplemental_linked_syllabus\n"
-                "DEFAULT_SYLLABUS_HOSTS\n",
+                "DEFAULT_SYLLABUS_HOSTS\npackage_html_link\n",
                 encoding="utf-8",
             )
 
@@ -120,6 +120,10 @@ class RunnerReleaseBundleTests(unittest.TestCase):
             self.assertEqual(
                 capabilities["linked_syllabus_supplement"]["network_boundary"],
                 "allowlisted_best_effort_nonfatal",
+            )
+            self.assertEqual(
+                capabilities["linked_syllabus_supplement"]["discovery_shapes"],
+                ["manifest_item_link", "package_html_link"],
             )
             (scripts / "reconstruct_course_structure.py").write_text(
                 "# missing capability markers\n", encoding="utf-8"

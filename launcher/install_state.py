@@ -313,6 +313,19 @@ def validate_manifest_payload(
             }
             if any(syllabus.get(key) != value for key, value in expected.items()):
                 raise InstallStateError("Release manifest contains an unsupported linked-syllabus capability")
+            discovery_shapes = syllabus.get("discovery_shapes")
+            expected_discovery_shapes = {
+                "manifest_item_link",
+                "package_html_link",
+            }
+            if (
+                not isinstance(discovery_shapes, list)
+                or len(discovery_shapes) != len(expected_discovery_shapes)
+                or set(discovery_shapes) != expected_discovery_shapes
+            ):
+                raise InstallStateError(
+                    "Release manifest contains unsupported linked-syllabus discovery shapes"
+                )
             paths = syllabus.get("runtime_files")
             if not isinstance(paths, list) or not paths or any(
                 not isinstance(path, str) or not path for path in paths
