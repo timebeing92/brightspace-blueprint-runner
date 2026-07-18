@@ -47,3 +47,26 @@ to tested Bundle commit
 the runtime under test. The Bundle commit was recorded only after its complete
 77-test fixture suite passed. This proof note does not authorize a public
 release, and the published installer compatibility lock remains unchanged.
+
+## Fresh managed-candidate environment proof
+
+After Runner commit `b955b5a9ab29295e82aa6cdad2371cffdd04902e` and
+Bundle commit `4dc58f9ef0dffe8d563576eaf7f0ed005395799a` were pushed, the
+managed builder produced an unreleased candidate with ZIP SHA-256
+`5d9d8e5f60c6b6da209fe6745ff38f32da0a86cc5f36fd953ce73ae353c1db89`.
+The candidate was extracted into a fresh temporary install root; no repository
+virtual environment was copied into it.
+
+The stable launcher reported both exact commits through `--health`. Its
+`--doctor --fix --yes --plain --no-update-check` path then created
+`versions/2.7.0/brightspace-blueprint-bundle/.venv`, installed the Bundle
+requirements under Python 3.13.3, and reported the core pipeline and structural
+DOCX QA ready. A second `--doctor` run without `--fix` remained green, and
+`python -m pip check` inside the created environment reported no broken
+requirements.
+
+The first dependency attempt was intentionally made under the restricted test
+network and failed at package download after successfully creating the virtual
+environment. Re-running with package-download access recovered in place and
+completed normally. This proves the release setup remains retryable as well as
+functional. It does not authorize publication of the candidate.
