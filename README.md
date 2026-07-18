@@ -6,11 +6,15 @@ rubrics, QA findings, and source-traceable run evidence through one guided
 workflow.
 
 Blueprint Wizard is a conventional program that runs on your own computer,
-**not an AI system**. It opens the export, reads the XML and HTML files that
-Brightspace created, follows the IDs and links connecting the pieces, and
-writes the results using fixed, testable rules. Optional network features can
-install dependencies, check for updates or external links, or retrieve a
-linked syllabus, but they do not send course content to an AI service.
+not an AI system: it reads the XML and HTML contained in the Brightspace
+export package, follows the IDs and links connecting the pieces, and works
+through a systematic set of programmed checks to rebuild the course and flag
+anything missing, broken, or unusual. Once its one-time local setup is
+complete, the core blueprint and QA workflow needs no internet connection—you
+could turn off Wi-Fi or work from a cave and still build the blueprint. Only
+first-time setup downloads and network-specific extras such as update checks,
+external-link checks, or linked-syllabus retrieval need a connection; none
+sends course content to an AI service.
 
 ```text
          ▄                           ▄
