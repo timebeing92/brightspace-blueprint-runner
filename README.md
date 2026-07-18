@@ -5,9 +5,12 @@ review-ready course blueprint. It gathers course structure, activities,
 rubrics, QA findings, and source-traceable run evidence through one guided
 workflow.
 
-Everything runs locally on your computer through Python scripts and
-libraries. Course materials are not sent to an AI service—there is **no AI in
-the extraction pipeline**.
+Blueprint Wizard is a conventional program that runs on your own computer,
+**not an AI system**. It opens the export, reads the XML and HTML files that
+Brightspace created, follows the IDs and links connecting the pieces, and
+writes the results using fixed, testable rules. Optional network features can
+install dependencies, check for updates or external links, or retrieve a
+linked syllabus, but they do not send course content to an AI service.
 
 ```text
          ▄                           ▄
