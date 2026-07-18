@@ -14,7 +14,7 @@ workflow needs no internet connection—you could turn off Wi-Fi or work from a
 cave and still build the blueprint. Only first-time setup downloads and
 network-specific extras—including update checks, external-link checks, and
 linked-syllabus retrieval—need a connection. There is no AI involved
-whatsoever; this is traditional software built from explicit instructions and
+whatsoever; this is traditional software built from explicit logic and
 repeatable checks.
 
 ```text
