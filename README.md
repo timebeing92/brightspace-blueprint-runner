@@ -135,7 +135,12 @@ python3 scripts/make_release_bundle.py \
 
 The builder refuses dirty worktrees by default and writes
 `RELEASE_MANIFEST.json` inside the ZIP with both repository commits and the
-bundle contract hashes. A sibling `.sha256` file records the ZIP checksum.
+bundle contract hashes. New manifests also checksum the shipped pipeline entry
+point and course-structure extractor, so managed installs reject runtime-file
+drift even when the surrounding folder still looks complete. The manifest also
+declares the linked-syllabus supplement capability and refuses to package a
+bundle missing its authority, opt-out, or non-fatal extraction markers. A sibling
+`.sha256` file records the ZIP checksum.
 After publishing a compatible pair, refresh the installer record with:
 
 ```bash
@@ -293,6 +298,12 @@ need a Brightspace export or the sibling bundle checkout.
 - Python package installs happen inside the bundle's `.venv`.
 - Automatic update checks run only in interactive Wizard sessions, no more
   than once daily. `--yes` automation does not gain an implicit network call.
+- The bundled extractor separately inventories the syllabus item normally
+  carried inside the export's welcome module. It makes a non-fatal best-effort
+  fetch only from allow-listed syllabus hosts so missing descriptions,
+  materials, or course outcomes can be supplemented with checksum-bound
+  evidence. Package-local text remains primary. Advanced CLI runs can use
+  `--no-syllabus-fetch`; a failed or unfamiliar source never stops output.
 - Rubric steps and rubric result rows come from the bundle's
   `coursecraft.progress/1` event stream; the runner does not parse D2L XML or
   glob for rubric artifacts. When the bundle reports `outputs.rubrics_docx`,

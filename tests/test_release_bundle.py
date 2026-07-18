@@ -20,6 +20,8 @@ class RunnerReleaseBundleTests(unittest.TestCase):
         self.assertIn("--check-for-updates", release.START_HERE)
         self.assertIn("--no-update-check", release.START_HERE)
         self.assertIn("never replaces files", release.START_HERE)
+        self.assertIn("--no-syllabus-fetch", release.START_HERE)
+        self.assertIn("Package-local course text remains primary", release.START_HERE)
 
     def test_remote_normalization_removes_credentials(self) -> None:
         self.assertEqual(
@@ -73,6 +75,57 @@ class RunnerReleaseBundleTests(unittest.TestCase):
                 )
             rows = release.schema_receipt(bundle)
             self.assertEqual([row["schema"] for row in rows], ids)
+
+    def test_runtime_receipt_hashes_the_shipped_structure_extractor(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            bundle = Path(tmp)
+            scripts = bundle / "scripts"
+            scripts.mkdir()
+            (scripts / "build_blueprint_bundle.py").write_text(
+                "# pipeline entry point\n", encoding="utf-8"
+            )
+            (scripts / "reconstruct_course_structure.py").write_text(
+                "# nested-inline-heading regression protected\n", encoding="utf-8"
+            )
+
+            rows = release.runtime_receipt(bundle)
+
+            self.assertEqual(
+                [row["path"] for row in rows],
+                [
+                    "brightspace-blueprint-bundle/scripts/build_blueprint_bundle.py",
+                    "brightspace-blueprint-bundle/scripts/reconstruct_course_structure.py",
+                ],
+            )
+            self.assertTrue(all(len(row["sha256"]) == 64 for row in rows))
+
+    def test_release_capability_requires_the_linked_syllabus_procedure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            bundle = Path(tmp)
+            scripts = bundle / "scripts"
+            scripts.mkdir()
+            (scripts / "build_blueprint_bundle.py").write_text(
+                "--no-syllabus-fetch\nlinked_syllabus_fetch_requested\n"
+                "package-local content retained as primary\n",
+                encoding="utf-8",
+            )
+            (scripts / "reconstruct_course_structure.py").write_text(
+                "collect_syllabus_supplements\nsupplemental_linked_syllabus\n"
+                "DEFAULT_SYLLABUS_HOSTS\n",
+                encoding="utf-8",
+            )
+
+            capabilities = release.bundle_capabilities(bundle)
+
+            self.assertEqual(
+                capabilities["linked_syllabus_supplement"]["network_boundary"],
+                "allowlisted_best_effort_nonfatal",
+            )
+            (scripts / "reconstruct_course_structure.py").write_text(
+                "# missing capability markers\n", encoding="utf-8"
+            )
+            with self.assertRaisesRegex(RuntimeError, "lacks linked-syllabus release markers"):
+                release.bundle_capabilities(bundle)
 
 
 if __name__ == "__main__":

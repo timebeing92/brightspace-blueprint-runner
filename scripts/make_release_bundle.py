@@ -47,6 +47,14 @@ Normal DOCX generation and structural QA do not need LibreOffice or Poppler.
 An advanced maintainer-only render preview remains available through the
 documented bundle CLI, but it is not part of normal setup.
 
+Normal extraction also inventories the syllabus item carried in the course
+export. The bundled pipeline may fetch a recognized public syllabus link to
+supplement an otherwise-missing course description, required-materials field,
+or course outcomes. Package-local course text remains primary, fetched bytes
+and checksums stay in the output bundle, and any network/page-shape failure is
+reported without stopping the deliverable. Advanced CLI users can pass
+--no-syllabus-fetch for an inventory-only run.
+
 After setup, interactive runs check the public GitHub release feed at most once
 per day. The check needs no account, never replaces files, and is skipped with
 --no-update-check. Run with --check-for-updates to check immediately and exit.
@@ -163,6 +171,59 @@ def schema_receipt(bundle_root: Path) -> list[dict[str, str]]:
     return rows
 
 
+def runtime_receipt(bundle_root: Path) -> list[dict[str, str]]:
+    """Receipt critical bundle entry points whose exact bytes ship in the ZIP."""
+    rows = []
+    for relative in (
+        "scripts/build_blueprint_bundle.py",
+        "scripts/reconstruct_course_structure.py",
+    ):
+        path = bundle_root / relative
+        rows.append(
+            {
+                "path": f"brightspace-blueprint-bundle/{relative}",
+                "sha256": sha256_file(path),
+            }
+        )
+    return rows
+
+
+def bundle_capabilities(bundle_root: Path) -> dict[str, dict[str, Any]]:
+    """Declare and gate behavior that a release promises beyond file presence."""
+    required_markers = {
+        "scripts/build_blueprint_bundle.py": (
+            "--no-syllabus-fetch",
+            "linked_syllabus_fetch_requested",
+            "content retained as primary",
+        ),
+        "scripts/reconstruct_course_structure.py": (
+            "collect_syllabus_supplements",
+            "supplemental_linked_syllabus",
+            "DEFAULT_SYLLABUS_HOSTS",
+        ),
+    }
+    for relative, markers in required_markers.items():
+        text = (bundle_root / relative).read_text(encoding="utf-8")
+        missing = [marker for marker in markers if marker not in text]
+        if missing:
+            raise RuntimeError(
+                f"Selected bundle lacks linked-syllabus release markers in {relative}: "
+                + ", ".join(missing)
+            )
+    return {
+        "linked_syllabus_supplement": {
+            "status": "enabled_by_default",
+            "evidence_role": "supplemental_linked_syllabus",
+            "primary_authority": "package_local_export",
+            "network_boundary": "allowlisted_best_effort_nonfatal",
+            "runtime_files": [
+                "brightspace-blueprint-bundle/scripts/build_blueprint_bundle.py",
+                "brightspace-blueprint-bundle/scripts/reconstruct_course_structure.py",
+            ],
+        }
+    }
+
+
 def release_manifest(
     *,
     version: str,
@@ -189,6 +250,8 @@ def release_manifest(
             "commit": bundle_commit,
         },
         "contracts": schema_receipt(bundle_root),
+        "runtime_files": runtime_receipt(bundle_root),
+        "capabilities": bundle_capabilities(bundle_root),
     }
 
 

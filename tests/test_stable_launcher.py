@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import subprocess
@@ -51,8 +52,13 @@ data.mkdir(parents=True, exist_ok=True)
     )
     (runner / "blueprint_wizard.sh").write_text("#!/bin/sh\n", encoding="utf-8")
     (runner / "blueprint_wizard.ps1").write_text("# fixture\n", encoding="utf-8")
-    (bundle / "scripts" / "build_blueprint_bundle.py").write_text(
+    pipeline_entry = bundle / "scripts" / "build_blueprint_bundle.py"
+    pipeline_entry.write_text(
         "# fixture\n", encoding="utf-8"
+    )
+    structure_extractor = bundle / "scripts" / "reconstruct_course_structure.py"
+    structure_extractor.write_text(
+        "# nested-inline-heading regression protected\n", encoding="utf-8"
     )
     (bundle / "requirements.txt").write_text("# fixture\n", encoding="utf-8")
     manifest = {
@@ -83,6 +89,16 @@ data.mkdir(parents=True, exist_ok=True)
                     "c",
                 ),
             )
+        ],
+        "runtime_files": [
+            {
+                "path": "brightspace-blueprint-bundle/scripts/build_blueprint_bundle.py",
+                "sha256": hashlib.sha256(pipeline_entry.read_bytes()).hexdigest(),
+            },
+            {
+                "path": "brightspace-blueprint-bundle/scripts/reconstruct_course_structure.py",
+                "sha256": hashlib.sha256(structure_extractor.read_bytes()).hexdigest(),
+            }
         ],
     }
     (root / "RELEASE_MANIFEST.json").write_text(
@@ -192,6 +208,86 @@ def test_untrusted_release_repository_is_rejected(tmp_path: Path) -> None:
     )
 
     with pytest.raises(install_state.InstallStateError, match="Unexpected runner"):
+        install_state.validate_release_manifest(root, expected_version="2.7.0")
+
+
+def test_receipted_bundle_runtime_tampering_is_rejected(tmp_path: Path) -> None:
+    install_root = tmp_path / "Blueprint Wizard"
+    root = write_version(
+        install_root,
+        "2.7.0",
+        runner_commit="1" * 40,
+        bundle_commit="2" * 40,
+    )
+    extractor = root / "brightspace-blueprint-bundle" / "scripts" / "reconstruct_course_structure.py"
+    extractor.write_text("# tampered after packaging\n", encoding="utf-8")
+
+    with pytest.raises(install_state.InstallStateError, match="checksum mismatch"):
+        install_state.validate_release_manifest(root, expected_version="2.7.0")
+
+
+def test_linked_syllabus_release_capability_is_validated_when_declared(tmp_path: Path) -> None:
+    install_root = tmp_path / "Blueprint Wizard"
+    root = write_version(
+        install_root,
+        "2.7.0",
+        runner_commit="1" * 40,
+        bundle_commit="2" * 40,
+    )
+    manifest_path = root / "RELEASE_MANIFEST.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["capabilities"] = {
+        "linked_syllabus_supplement": {
+            "status": "enabled_by_default",
+            "evidence_role": "supplemental_linked_syllabus",
+            "primary_authority": "package_local_export",
+            "network_boundary": "allowlisted_best_effort_nonfatal",
+            "runtime_files": [
+                "brightspace-blueprint-bundle/scripts/build_blueprint_bundle.py",
+                "brightspace-blueprint-bundle/scripts/reconstruct_course_structure.py",
+            ],
+        }
+    }
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    validated = install_state.validate_release_manifest(root, expected_version="2.7.0")
+    assert validated["capabilities"]["linked_syllabus_supplement"]["status"] == (
+        "enabled_by_default"
+    )
+
+    manifest["capabilities"]["linked_syllabus_supplement"]["primary_authority"] = (
+        "linked_syllabus"
+    )
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    with pytest.raises(install_state.InstallStateError, match="unsupported linked-syllabus"):
+        install_state.validate_release_manifest(root, expected_version="2.7.0")
+
+
+def test_linked_syllabus_capability_requires_both_runtime_receipts(tmp_path: Path) -> None:
+    install_root = tmp_path / "Blueprint Wizard"
+    root = write_version(
+        install_root,
+        "2.7.0",
+        runner_commit="1" * 40,
+        bundle_commit="2" * 40,
+    )
+    manifest_path = root / "RELEASE_MANIFEST.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["capabilities"] = {
+        "linked_syllabus_supplement": {
+            "status": "enabled_by_default",
+            "evidence_role": "supplemental_linked_syllabus",
+            "primary_authority": "package_local_export",
+            "network_boundary": "allowlisted_best_effort_nonfatal",
+            "runtime_files": [
+                "brightspace-blueprint-bundle/scripts/build_blueprint_bundle.py",
+                "brightspace-blueprint-bundle/scripts/reconstruct_course_structure.py",
+            ],
+        }
+    }
+    manifest["runtime_files"] = manifest["runtime_files"][1:]
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(install_state.InstallStateError, match="not fully receipted"):
         install_state.validate_release_manifest(root, expected_version="2.7.0")
 
 

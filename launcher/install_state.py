@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import json
 import os
 import re
@@ -77,6 +78,14 @@ def load_json(path: Path) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise InstallStateError(f"Expected a JSON object in {path}")
     return payload
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
 
 
 def atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -204,6 +213,30 @@ def validate_release_manifest(
     if missing:
         detail = "\n".join(f"  - {path}" for path in missing)
         raise InstallStateError(f"Release is missing required files:\n{detail}")
+    for receipt in manifest.get("runtime_files") or []:
+        relative = Path(str(receipt["path"]))
+        if relative.is_absolute() or not relative.parts or any(
+            part in {"", ".", ".."} for part in relative.parts
+        ):
+            raise InstallStateError(
+                f"Release manifest contains an unsafe runtime path: {receipt['path']!r}"
+            )
+        candidate = root.joinpath(*relative.parts)
+        try:
+            candidate.resolve().relative_to(root.resolve())
+        except ValueError as exc:
+            raise InstallStateError(
+                f"Release runtime path escapes its root: {receipt['path']!r}"
+            ) from exc
+        if candidate.is_symlink() or not candidate.is_file():
+            raise InstallStateError(
+                f"Receipted runtime file is missing: {receipt['path']}"
+            )
+        actual = sha256_file(candidate)
+        if actual != receipt["sha256"]:
+            raise InstallStateError(
+                f"Runtime file checksum mismatch: {receipt['path']}"
+            )
     return manifest
 
 
@@ -248,6 +281,55 @@ def validate_manifest_payload(
             raise InstallStateError("Release manifest contains an invalid contract receipt")
         if not re.fullmatch(r"[0-9a-f]{64}", str(contract.get("sha256") or "")):
             raise InstallStateError("Release manifest contains an invalid contract hash")
+    runtime_files = manifest.get("runtime_files")
+    runtime_receipt_paths: set[str] = set()
+    if runtime_files is not None:
+        if not isinstance(runtime_files, list) or not runtime_files:
+            raise InstallStateError("Release manifest contains invalid runtime receipts")
+        seen_paths: set[str] = set()
+        for receipt in runtime_files:
+            if not isinstance(receipt, dict):
+                raise InstallStateError("Release manifest contains an invalid runtime receipt")
+            path = str(receipt.get("path") or "")
+            if not path or path in seen_paths:
+                raise InstallStateError("Release manifest contains a duplicate or blank runtime path")
+            seen_paths.add(path)
+            runtime_receipt_paths.add(path)
+            if not re.fullmatch(r"[0-9a-f]{64}", str(receipt.get("sha256") or "")):
+                raise InstallStateError("Release manifest contains an invalid runtime hash")
+    capabilities = manifest.get("capabilities")
+    if capabilities is not None:
+        if not isinstance(capabilities, dict):
+            raise InstallStateError("Release manifest contains invalid capabilities")
+        syllabus = capabilities.get("linked_syllabus_supplement")
+        if syllabus is not None:
+            if not isinstance(syllabus, dict):
+                raise InstallStateError("Release manifest contains an invalid linked-syllabus capability")
+            expected = {
+                "status": "enabled_by_default",
+                "evidence_role": "supplemental_linked_syllabus",
+                "primary_authority": "package_local_export",
+                "network_boundary": "allowlisted_best_effort_nonfatal",
+            }
+            if any(syllabus.get(key) != value for key, value in expected.items()):
+                raise InstallStateError("Release manifest contains an unsupported linked-syllabus capability")
+            paths = syllabus.get("runtime_files")
+            if not isinstance(paths, list) or not paths or any(
+                not isinstance(path, str) or not path for path in paths
+            ):
+                raise InstallStateError("Release manifest contains invalid linked-syllabus runtime paths")
+            expected_paths = {
+                "brightspace-blueprint-bundle/scripts/build_blueprint_bundle.py",
+                "brightspace-blueprint-bundle/scripts/reconstruct_course_structure.py",
+            }
+            if set(paths) != expected_paths:
+                raise InstallStateError(
+                    "Release manifest contains unsupported linked-syllabus runtime paths"
+                )
+            if not expected_paths.issubset(runtime_receipt_paths):
+                raise InstallStateError(
+                    "Linked-syllabus capability runtime files are not fully receipted"
+                )
     return version
 
 
