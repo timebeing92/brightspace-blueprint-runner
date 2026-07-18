@@ -18,7 +18,7 @@ jobs:
         with:
           repository: timebeing92/brightspace-blueprint-bundle
           path: bundle
-          ref: 7fc9abe411a09c09ab1cc41a37abb9232df17731
+          ref: 0b197d95b8b1a5593f92772e664b1d04c5441677
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
@@ -63,7 +63,7 @@ jobs:
         with:
           repository: timebeing92/brightspace-blueprint-bundle
           path: bundle
-          ref: 7fc9abe411a09c09ab1cc41a37abb9232df17731
+          ref: 0b197d95b8b1a5593f92772e664b1d04c5441677
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"

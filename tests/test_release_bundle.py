@@ -99,6 +99,49 @@ class RunnerReleaseBundleTests(unittest.TestCase):
             )
             self.assertTrue(all(len(row["sha256"]) == 64 for row in rows))
 
+    def test_release_manifest_records_the_bundle_version(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            bundle = Path(tmp)
+            (bundle / "VERSION").write_text("1.3.0\n", encoding="utf-8")
+            schemas = bundle / "schemas"
+            scripts = bundle / "scripts"
+            schemas.mkdir()
+            scripts.mkdir()
+            schema_rows = (
+                ("activities_schema.json", "coursecraft.activities/1"),
+                ("blueprint_schema.json", "coursecraft.blueprint/4"),
+                ("run_identity_schema.json", "coursecraft.run/1"),
+                ("rubrics_schema.json", "coursecraft.rubrics/1"),
+                ("structure_schema.json", "coursecraft.structure/1"),
+                ("progress_events_schema.json", "coursecraft.progress/1"),
+            )
+            for name, schema_id in schema_rows:
+                (schemas / name).write_text(
+                    json.dumps({"$id": schema_id}), encoding="utf-8"
+                )
+            (scripts / "build_blueprint_bundle.py").write_text(
+                "--no-syllabus-fetch\nlinked_syllabus_fetch_requested\n"
+                "content retained as primary\n",
+                encoding="utf-8",
+            )
+            (scripts / "reconstruct_course_structure.py").write_text(
+                "collect_syllabus_supplements\nsupplemental_linked_syllabus\n"
+                "DEFAULT_SYLLABUS_HOSTS\npackage_html_link\n",
+                encoding="utf-8",
+            )
+
+            manifest = release.release_manifest(
+                version="2.8.0",
+                runner_ref="r" * 40,
+                runner_commit="r" * 40,
+                bundle_ref="b" * 40,
+                bundle_commit="b" * 40,
+                bundle_remote="https://github.com/example/bundle.git",
+                bundle_root=bundle,
+            )
+
+            self.assertEqual(manifest["bundle"]["version"], "1.3.0")
+
     def test_release_capability_requires_the_linked_syllabus_procedure(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             bundle = Path(tmp)

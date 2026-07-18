@@ -239,6 +239,9 @@ def release_manifest(
     bundle_remote: str,
     bundle_root: Path,
 ) -> dict[str, Any]:
+    bundle_version = (bundle_root / "VERSION").read_text(encoding="utf-8").strip()
+    if not bundle_version:
+        raise RuntimeError("Selected bundle has an empty VERSION file")
     return {
         "schema": "coursecraft.runner_release/1",
         "version": version,
@@ -253,6 +256,7 @@ def release_manifest(
             "repository": bundle_remote,
             "ref": bundle_ref,
             "commit": bundle_commit,
+            "version": bundle_version,
         },
         "contracts": schema_receipt(bundle_root),
         "runtime_files": runtime_receipt(bundle_root),

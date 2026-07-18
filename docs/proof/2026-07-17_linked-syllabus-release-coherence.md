@@ -43,7 +43,7 @@ because the capability is additive and optional there.
 Fixture tests use mocked syllabus HTML and do not depend on a live Brightspace
 environment or public syllabus server. Both Runner CI checkout sites are pinned
 to the Bundle v1.3.0 release commit
-`7fc9abe411a09c09ab1cc41a37abb9232df17731`; no mutable tag or branch selects
+`0b197d95b8b1a5593f92772e664b1d04c5441677`; no mutable tag or branch selects
 the runtime under test. The Bundle commit was recorded only after its complete
 77-test fixture suite passed.
 
