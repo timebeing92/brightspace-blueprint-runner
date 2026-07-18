@@ -42,11 +42,10 @@ because the capability is additive and optional there.
 
 Fixture tests use mocked syllabus HTML and do not depend on a live Brightspace
 environment or public syllabus server. Both Runner CI checkout sites are pinned
-to tested Bundle commit
-`4dc58f9ef0dffe8d563576eaf7f0ed005395799a`; no mutable tag or branch selects
+to the Bundle v1.3.0 release commit
+`7fc9abe411a09c09ab1cc41a37abb9232df17731`; no mutable tag or branch selects
 the runtime under test. The Bundle commit was recorded only after its complete
-77-test fixture suite passed. This proof note does not authorize a public
-release, and the published installer compatibility lock remains unchanged.
+77-test fixture suite passed.
 
 ## Fresh managed-candidate environment proof
 

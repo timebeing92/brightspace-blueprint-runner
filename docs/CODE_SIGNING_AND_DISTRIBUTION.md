@@ -1,9 +1,10 @@
 # Code Signing And Distribution Decision
 
-Status: review builds are intentionally unsigned. Signing is not required for
-fixture testing or a controlled internal review, but it should be treated as a
-release gate before broad distribution to nontechnical or externally managed
-users.
+Status: the v2.8.0 managed and portable ZIPs are intentionally unsigned and
+not notarized. That is acceptable for the current small, named internal user
+group when the trust prompts are disclosed and institutional policy permits
+continuation. Signing should be treated as a release gate before broad
+distribution to nontechnical or externally managed users.
 
 ## What signing changes
 

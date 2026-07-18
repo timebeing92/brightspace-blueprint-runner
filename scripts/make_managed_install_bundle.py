@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build an unreleased stable-launcher candidate from explicit git refs."""
+"""Build the managed stable-launcher package from explicit git refs."""
 from __future__ import annotations
 
 import argparse
@@ -13,11 +13,10 @@ import make_release_bundle as release
 RUNNER_ROOT = Path(__file__).resolve().parents[1]
 
 START_HERE = """\
-Blueprint Wizard managed-install candidate v{version}
+Blueprint Wizard managed installation v{version}
 
-This package is a fixture-backed stable-launcher candidate. It keeps complete
-Wizard releases under versions/, persistent work under user-data/, and selects
-the active release through current.json.
+This package keeps complete Wizard releases under versions/, persistent work
+under user-data/, and selects the active release through current.json.
 
 To start:
 
@@ -29,11 +28,19 @@ The initial active version is v{version}. The launcher never mixes runner and
 bundle versions. Settings, logs, update cache, and generated outputs remain
 outside version folders so rollback and later cleanup cannot remove user work.
 
-This candidate is not a published release. Its verified update, one-time
-restart, rollback, and protected cleanup paths are enabled for acceptance testing only.
-Do not distribute it until the recorded proof gates pass.
+When a future release is available, the Wizard can install the verified
+runner/bundle pair beside the current version after asking permission. It
+checks the GitHub asset digest, published SHA-256 sidecar, release manifest,
+repository identities, exact commits, runtime files, and contract hashes
+before activation. A one-time restart completes the switch. The prior complete
+version remains available for rollback, and old-version removal is explicit.
 
-Maintainer checks:
+This v{version} package is unsigned and is not notarized by Apple. macOS may
+require right-clicking "Blueprint Wizard.command" and choosing Open on first
+launch; Windows or institution-managed devices may show an equivalent trust
+prompt. Do not weaken system-wide security settings.
+
+Install checks and maintenance commands:
 
   bash blueprint_wizard_launcher.sh --health
   bash blueprint_wizard_launcher.sh --list-versions

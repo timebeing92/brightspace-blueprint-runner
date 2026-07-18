@@ -17,6 +17,11 @@ import install_state  # noqa: E402
 import stable_launcher  # noqa: E402
 
 
+def test_public_stable_launcher_has_a_non_development_version() -> None:
+    assert stable_launcher.LAUNCHER_VERSION == "1.0.0"
+    assert "dev" not in stable_launcher.LAUNCHER_VERSION
+
+
 def write_version(
     install_root: Path,
     version: str,

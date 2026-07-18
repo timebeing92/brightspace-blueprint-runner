@@ -18,7 +18,7 @@ jobs:
         with:
           repository: timebeing92/brightspace-blueprint-bundle
           path: bundle
-          ref: 4dc58f9ef0dffe8d563576eaf7f0ed005395799a
+          ref: 7fc9abe411a09c09ab1cc41a37abb9232df17731
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
@@ -63,7 +63,7 @@ jobs:
         with:
           repository: timebeing92/brightspace-blueprint-bundle
           path: bundle
-          ref: 4dc58f9ef0dffe8d563576eaf7f0ed005395799a
+          ref: 7fc9abe411a09c09ab1cc41a37abb9232df17731
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
@@ -95,7 +95,7 @@ jobs:
             exit 1
           }
         working-directory: runner
-      - name: Build and run managed candidate on POSIX
+      - name: Build and run managed package on POSIX
         if: runner.os != 'Windows'
         shell: bash
         run: |
@@ -105,11 +105,12 @@ jobs:
             --bundle-ref "$bundle_sha" \
             --bundle-dir ../bundle
           mkdir managed-proof
-          python -c "import zipfile; zipfile.ZipFile('dist/blueprint-wizard-managed-v2.7.0.zip').extractall('managed-proof')"
-          bash managed-proof/blueprint-wizard-managed-v2.7.0/blueprint_wizard_launcher.sh --health
-          bash managed-proof/blueprint-wizard-managed-v2.7.0/blueprint_wizard_launcher.sh --version
+          python -c "from pathlib import Path; import zipfile; archives=list(Path('dist').glob('blueprint-wizard-managed-v*.zip')); assert len(archives) == 1; zipfile.ZipFile(archives[0]).extractall('managed-proof')"
+          managed_root=$(python -c "from pathlib import Path; roots=list(Path('managed-proof').glob('blueprint-wizard-managed-v*')); assert len(roots) == 1; print(roots[0])")
+          bash "$managed_root/blueprint_wizard_launcher.sh" --health
+          bash "$managed_root/blueprint_wizard_launcher.sh" --version
         working-directory: runner
-      - name: Build and run managed candidate on Windows
+      - name: Build and run managed package on Windows
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
@@ -118,10 +119,12 @@ jobs:
             --runner-ref $env:GITHUB_SHA `
             --bundle-ref $bundleSha `
             --bundle-dir ../bundle
-          Expand-Archive `
-            -Path dist/blueprint-wizard-managed-v2.7.0.zip `
-            -DestinationPath managed-proof
-          $launcher = "managed-proof/blueprint-wizard-managed-v2.7.0/blueprint_wizard_launcher.ps1"
+          $archive = @(Get-ChildItem dist/blueprint-wizard-managed-v*.zip)
+          if ($archive.Count -ne 1) { throw "Expected exactly one managed package" }
+          Expand-Archive -Path $archive[0].FullName -DestinationPath managed-proof
+          $managedRoot = @(Get-ChildItem managed-proof -Directory -Filter "blueprint-wizard-managed-v*")
+          if ($managedRoot.Count -ne 1) { throw "Expected exactly one managed package root" }
+          $launcher = Join-Path $managedRoot[0].FullName "blueprint_wizard_launcher.ps1"
           & $launcher --health
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & $launcher --version

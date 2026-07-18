@@ -28,8 +28,10 @@ def test_initial_pointer_records_one_complete_release_pair() -> None:
     }
 
 
-def test_candidate_start_here_preserves_the_unreleased_boundary() -> None:
-    assert "not a published release" in managed.START_HERE
+def test_managed_start_here_explains_release_and_safety_boundaries() -> None:
+    assert "managed installation" in managed.START_HERE
     assert "outside version folders" in managed.START_HERE
-    assert "acceptance testing only" in managed.START_HERE
+    assert "published SHA-256 sidecar" in managed.START_HERE
+    assert "unsigned" in managed.START_HERE
+    assert "not notarized" in managed.START_HERE
     assert "rollback version stays protected" in managed.START_HERE

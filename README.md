@@ -1,9 +1,9 @@
 # Brightspace Blueprint Runner
 
-Current version: **2.7.0**
+Current version: **2.8.0**
 
-The v2.7.0 one-download ZIP includes bundle v1.2.0. Published asset SHA-256:
-`11f8f48d6e9735b2df585bbd9de149a9c6520b7a9e8b0e653555ce29cefd41bc`.
+The v2.8.0 release includes Blueprint Bundle v1.3.0. Independent SHA-256
+sidecars are published beside both the managed and portable ZIP assets.
 
 ```text
          ▄                           ▄
@@ -22,9 +22,9 @@ The v2.7.0 one-download ZIP includes bundle v1.2.0. Published asset SHA-256:
 
       B L U E P R I N T   W I Z A R D
 ```
-Transmute a D2l/ Brightspace Export into a comprehensive, cleanly formatted
-course blueprint. Runs completley localy via a series of python scripts and
-libraries. **No AI whatsoever**. 
+Transmute a D2L/Brightspace export into a comprehensive, cleanly formatted
+course blueprint. Runs completely locally through Python scripts and
+libraries. **No AI whatsoever**.
 
 A one-terminal wizard for the adjacent [brightspace-blueprint-bundle](https://github.com/timebeing92/brightspace-blueprint-bundle) project:
 it checks the machine, prepares the bundle's `.venv`, walks through the
@@ -73,16 +73,27 @@ cannot block blueprint generation when the network is offline. Users can open
 the release page from the card, force a check with `--check-for-updates`, or
 disable automatic checks with `--no-update-check`.
 
+v2.8.0 adds the stable managed launcher. Complete Runner/Bundle pairs install
+side by side, a small atomic pointer selects the active version, and settings,
+logs, update evidence, and generated outputs remain outside replaceable version
+folders. After confirmation, managed installations download and verify a new
+release, activate it, and restart once while keeping the previous complete
+version available for rollback. The portable one-folder ZIP remains supported.
+This release also carries Bundle v1.3.0's run-identity contracts and resilient
+direct-or-nested linked-syllabus supplementation.
+
 > [!IMPORTANT]
 > Do not use GitHub's green **Code -> Download ZIP** button as the one-download
 > install. That source ZIP contains only this runner repo, not the companion
 > `brightspace-blueprint-bundle` pipeline repo, so the wizard will not run from
 > it by itself. For a single download, use the latest
-> `blueprint-wizard-vX.Y.zip` from the
+> `blueprint-wizard-managed-vX.Y.Z.zip` from the
 > [GitHub Releases page](https://github.com/timebeing92/brightspace-blueprint-runner/releases).
 
 > [!NOTE]
-> There are three install options. If you would like to receive updates, or go beyond updates and test the tool and submit change requests or revisions via github, it is recommended that you choose install option two or three.
+> The managed release ZIP is the recommended installation for colleagues who
+> do not use git. It can apply future verified releases without replacing user
+> work. Git clone remains the contributor path.
 
 ## Install
 
@@ -91,13 +102,24 @@ Whichever you choose, first run is the same: the wizard checks the machine
 and asks permission before installing anything it needs (Python packages go
 in a private `.venv`; nothing touches your system Python).
 
-**1. Release zip — recommended for most people.** Download the latest
-`blueprint-wizard-vX.Y.zip` from the GitHub Releases page, unzip it, and
-double-click `Blueprint Wizard.command` (macOS) or `Blueprint Wizard.bat`
-(Windows). Choose this if you just want to use the tool: no git, no terminal
-knowledge, and updating means downloading the next zip. (macOS, first run
-only: if Gatekeeper warns about an unidentified developer, right-click the
-`.command` file and choose Open.)
+**1. Managed release ZIP — recommended for most people.** Download the latest
+`blueprint-wizard-managed-vX.Y.Z.zip` from the GitHub Releases page, unzip it,
+and double-click `Blueprint Wizard.command` (macOS) or `Blueprint Wizard.bat`
+(Windows). Choose this if you just want to use the tool: no git and no terminal
+knowledge. A future update is installed only after confirmation, verified as a
+complete Runner/Bundle pair, and kept beside the current version so rollback
+remains possible. Settings, logs, and generated outputs stay in `user-data/`
+and are not removed during version cleanup.
+
+The release also includes `blueprint-wizard-vX.Y.Z.zip`, the original portable
+one-folder distribution. Existing portable users may continue with it, and the
+managed updater uses that exact asset as its version payload. Portable folders
+show update notices but do not replace themselves.
+
+The v2.8.0 ZIPs are unsigned and are not notarized. On macOS, Gatekeeper may
+require right-clicking `Blueprint Wizard.command` and choosing Open on first
+launch. Windows or institution-managed devices may show an equivalent trust
+prompt. Do not weaken system-wide security settings.
 
 **2. git clone — for contributors and people following development.** Clone
 the two repos as sibling folders, then launch from the runner:
@@ -125,22 +147,26 @@ compatible pair without combining two independent moving `main` branches.
 Choose this if you live in the terminal and want the fastest zero-to-wizard
 path. Requires git — both repos are public, so this works for anyone.
 
-Maintainers cut the release zip from explicit commits:
+Maintainers cut both release ZIPs from the same explicit commits:
 
 ```bash
 python3 scripts/make_release_bundle.py \
   --runner-ref "$(git rev-parse HEAD)" \
   --bundle-ref "$(git -C ../brightspace-blueprint-bundle rev-parse HEAD)"
+
+python3 scripts/make_managed_install_bundle.py \
+  --runner-ref "$(git rev-parse HEAD)" \
+  --bundle-ref "$(git -C ../brightspace-blueprint-bundle rev-parse HEAD)"
 ```
 
-The builder refuses dirty worktrees by default and writes
-`RELEASE_MANIFEST.json` inside the ZIP with both repository commits and the
-bundle contract hashes. New manifests also checksum the shipped pipeline entry
-point and course-structure extractor, so managed installs reject runtime-file
-drift even when the surrounding folder still looks complete. The manifest also
-declares the linked-syllabus supplement capability and refuses to package a
-bundle missing its authority, opt-out, or non-fatal extraction markers. A sibling
-`.sha256` file records the ZIP checksum.
+The builders refuse dirty worktrees by default and write
+`RELEASE_MANIFEST.json` inside each version payload with both repository
+commits and the bundle contract hashes. New manifests also checksum the shipped
+pipeline entry point and course-structure extractor, so managed installs reject
+runtime-file drift even when the surrounding folder still looks complete. The
+manifest also declares the linked-syllabus supplement capability and refuses
+to package a bundle missing its authority, opt-out, or non-fatal extraction
+markers. A sibling `.sha256` file records each ZIP checksum.
 After publishing a compatible pair, refresh the installer record with:
 
 ```bash
@@ -208,8 +234,10 @@ cancels cleanly at any point; the partial run log is kept.
 Interactive runs check the public Blueprint Wizard GitHub release feed at most
 once every 24 hours, after the local Python environment and core packages are
 ready. If a newer release exists, the Wizard shows the installed and available
-versions and offers to open the verified release page. It does not download,
-delete, move, or overwrite the current installation.
+versions. Portable installations can open the verified release page but never
+replace their own files. Managed installations can, after explicit
+confirmation, download and verify the complete new release beside the current
+version, activate it atomically, and restart once.
 
 ```bash
 bash blueprint_wizard.sh --check-for-updates  # force a check and exit
@@ -222,11 +250,18 @@ request metadata. No GitHub account or access token is used. Network, timeout,
 rate-limit, malformed-response, and read-only-cache failures are non-fatal; an
 ordinary automatic check stays silent and the Wizard continues.
 
+Managed updates compare GitHub's asset digest with the downloaded ZIP, verify
+the independent `.sha256` sidecar, then validate the release manifest,
+repository/commit identities, archive layout, critical runtime files, and all
+six schema hashes before activation. Any network, checksum, extraction, or
+validation failure leaves the current version selected. The previous complete
+version remains the rollback target until the replacement has launched
+successfully; removal of an old version is a separate explicit action.
+
 For an installation created by `install_blueprint_wizard.sh`, rerunning that
-installer obtains the currently recorded verified runner/bundle pair. Release
-ZIP users should download and unzip the newer one-download ZIP from the release
-page. Automatic download, archival of the old folder, and restart-to-complete
-behavior are intentionally deferred to a separately reviewed update design.
+installer obtains the currently recorded verified runner/bundle pair. Portable
+release users should download and unzip the newer `blueprint-wizard-vX.Y.Z.zip`
+from the release page.
 
 ## Non-Interactive Use
 
@@ -268,13 +303,15 @@ brightspace-blueprint-runner/
 ├── blueprint_wizard.ps1     <- Windows launcher: same job in PowerShell (winget install offer)
 ├── install_blueprint_wizard.sh <- curl-able installer: verifies and installs the recorded release pair
 ├── installer-compatibility.lock <- generated compatible runner/bundle tag and commit identities
+├── launcher/               <- stable managed install/update/rollback core
 ├── requirements-dev.txt    <- pytest for the runner test suite
-└── scripts/
+├── scripts/
     ├── blueprint_wizard.py  <- the blueprint-specific flow
     ├── update_check.py      <- cached, non-blocking public release check
     ├── ui.py                <- reusable ANSI components (terminal caps, cards, step board)
     ├── art.py               <- splash scene + animation
     ├── make_release_bundle.py <- maintainer tool: builds the release zip from both repos
+    ├── make_managed_install_bundle.py <- builds the stable managed release zip
     └── update_installer_compatibility.py <- generates the installer compatibility record
 └── tests/                  <- contract and launcher tests
 ```
@@ -298,6 +335,9 @@ need a Brightspace export or the sibling bundle checkout.
 - Python package installs happen inside the bundle's `.venv`.
 - Automatic update checks run only in interactive Wizard sessions, no more
   than once daily. `--yes` automation does not gain an implicit network call.
+- Managed installs can apply a verified release only after confirmation. The
+  stable launcher retains the prior complete version for rollback and never
+  places user data inside a removable version folder.
 - The bundled extractor separately inventories the syllabus item normally
   carried inside the export's welcome module. It makes a non-fatal best-effort
   fetch only from allow-listed syllabus hosts so missing descriptions,

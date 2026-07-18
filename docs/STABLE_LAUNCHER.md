@@ -1,8 +1,9 @@
-# Stable Launcher Development Note
+# Stable Launcher
 
-Status: local candidate only. This surface is not part of the published v2.7.0
-release and must not be released until every gate in
-`plans/2026-07-16_stable_launcher.md` has recorded evidence.
+Status: released in Blueprint Wizard v2.8.0 after every gate in
+`plans/2026-07-16_stable_launcher.md` recorded passing evidence. The managed
+release remains unsigned and not notarized; see
+`CODE_SIGNING_AND_DISTRIBUTION.md` for the distribution boundary.
 
 ## Why this exists
 
@@ -36,9 +37,9 @@ layout, GitHub asset digest, and published checksum before activation.
 Any download, trust, extraction, activation, or restart failure leaves the
 previous complete version and all `user-data/` content in place.
 
-## Candidate commands
+## Managed-install commands
 
-From an extracted managed candidate:
+From an extracted managed installation:
 
 ```bash
 bash blueprint_wizard_launcher.sh --health
@@ -65,8 +66,9 @@ cleanup candidates.
 
 ## Human review kit
 
-Do not hand reviewers the generic managed candidate from `dist/`. Build the
-one-unzip review kit from explicit clean commits instead:
+When a distinct unreleased build needs human review, do not hand reviewers the
+generic managed package from `dist/`. Build the one-unzip review kit from
+explicit clean commits instead:
 
 ```bash
 python3 scripts/make_managed_review_kit.py \
