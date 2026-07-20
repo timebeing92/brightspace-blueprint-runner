@@ -45,8 +45,13 @@ Depending on the source export and selected options, a run can produce:
 - a checksum-backed run receipt connecting the deliverables to their source
   export and exact extraction-tool versions.
 
-If a recoverable component or QA step fails, the Wizard preserves the usable
-deliverables, labels the run **Partial**, and explains what may need review.
+If a recoverable component or QA step fails, the Wizard preserves producer-
+approved deliverables, labels the run **Partial**, and explains what may need
+review. Bundle 1.3.1 and later also report fidelity separately: if core evidence
+steps fail and the producer says its documents do not mirror the export, the
+Wizard presents a failed reading instead of offering those documents as a
+blueprint. A faithfully mirrored course with no weekly structure remains usable
+and is labeled explicitly.
 
 ## How the parts fit
 
@@ -59,9 +64,9 @@ wizard wraps its CLI and consumes its progress-event contract
 
 ## Current release
 
-The current release is **Blueprint Wizard v2.8.0**, paired with **Blueprint
-Bundle v1.3.0**. Most users should choose the managed release ZIP described
-below. See the [v2.8.0 release notes](docs/releases/v2.8.0.md) for checksums,
+The current release is **Blueprint Wizard v2.8.1**, paired with **Blueprint
+Bundle v1.3.2**. Most users should choose the managed release ZIP described
+below. See the [v2.8.1 release notes](docs/releases/v2.8.1.md) for checksums,
 verification evidence, and exact component identities. Version-by-version
 changes now live in the [changelog](CHANGELOG.md) rather than interrupting this
 guide.
@@ -100,7 +105,7 @@ one-folder distribution. Existing portable users may continue with it, and the
 managed updater uses that exact asset as its version payload. Portable folders
 show update notices but do not replace themselves.
 
-The v2.8.0 ZIPs are unsigned and are not notarized. On macOS, Gatekeeper may
+The v2.8.1 ZIPs are unsigned and are not notarized. On macOS, Gatekeeper may
 require right-clicking `Blueprint Wizard.command` and choosing Open on first
 launch. Windows or institution-managed devices may show an equivalent trust
 prompt. Do not weaken system-wide security settings.

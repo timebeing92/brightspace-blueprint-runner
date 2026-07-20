@@ -475,3 +475,97 @@ def test_show_results_surfaces_partial_status_and_report(tmp_path: Path, capsys)
     assert "Check DOCX structure" in out
     assert "Pipeline status" in out
     assert "demo__pipeline_status.md" in out
+
+
+@pytest.mark.parametrize("raw", [False, "false", "no", "0", ""])
+def test_unusable_delivery_never_broadens_falsy_known_values(raw) -> None:
+    reason = wizard.unusable_delivery(
+        {
+            "status": "partial",
+            "delivery": {
+                "usable": raw,
+                "empty": True,
+                "core_failures": ["Probe manifest"],
+            },
+        }
+    )
+
+    assert reason == "Core evidence steps failed: Probe manifest"
+
+
+def test_delivery_reader_preserves_legacy_and_ignores_unknown_keys() -> None:
+    assert wizard.unusable_delivery({"status": "partial"}) is None
+    assert wizard.unusable_delivery({"status": "partial", "delivery": None}) is None
+    assert wizard.unusable_delivery(
+        {
+            "delivery": {
+                "usable": True,
+                "empty": False,
+                "core_failures": [],
+                "future_addition": {"safe": True},
+            }
+        }
+    ) is None
+
+
+def test_core_failure_names_are_coerced_and_capped() -> None:
+    reason = wizard.unusable_delivery(
+        {
+            "delivery": {
+                "usable": False,
+                "core_failures": [None, 42, "x" * 100, "c", "d", "e", "f", "g"],
+            }
+        }
+    )
+
+    assert "42" in reason
+    assert "x" * 80 in reason
+    assert "x" * 81 not in reason
+    assert reason.endswith("c, d, e, f")
+    assert ", g" not in reason
+
+
+def test_show_results_names_a_producer_approved_empty_course(tmp_path: Path, capsys) -> None:
+    wizard.TERM = ui.Term(plain=True)
+    bundle_dir = tmp_path / "empty__blueprint_bundle"
+    bundle_dir.mkdir()
+    markdown = bundle_dir / "empty__blueprint.md"
+    markdown.write_text("# Empty course\n", encoding="utf-8")
+    run_end = {
+        "status": "ok",
+        "delivery": {"usable": True, "empty": True, "core_failures": []},
+        "outputs": {"markdown": str(markdown)},
+        "summary": {"weeks": 0},
+        "bundle_dir": str(bundle_dir),
+    }
+
+    wizard.show_results(run_end, tmp_path / "run.log", argparse.Namespace(yes=True), 2.0)
+    out = capsys.readouterr().out
+
+    assert "mirrors an empty course" in out
+    assert "empty__blueprint.md" in out
+
+
+def test_unusable_delivery_card_never_offers_emitted_documents(tmp_path: Path, capsys) -> None:
+    wizard.TERM = ui.Term(plain=True)
+    emitted = tmp_path / "hollow__blueprint.md"
+    emitted.write_text("# Hollow\n", encoding="utf-8")
+    run_end = {
+        "status": "partial",
+        "delivery": {
+            "usable": False,
+            "empty": True,
+            "core_failures": ["Probe manifest", "Reconstruct course structure"],
+        },
+        "outputs": {"markdown": str(emitted)},
+    }
+
+    wizard.show_unusable_delivery(
+        run_end, tmp_path / "run.log", argparse.Namespace(yes=True)
+    )
+    out = capsys.readouterr().out
+
+    assert "documents do not mirror the export" in out
+    assert "Probe manifest" in out
+    assert "Reconstruct course structure" in out
+    assert emitted.name not in out

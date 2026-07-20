@@ -195,6 +195,8 @@ def bundle_capabilities(bundle_root: Path) -> dict[str, dict[str, Any]]:
             "--no-syllabus-fetch",
             "linked_syllabus_fetch_requested",
             "content retained as primary",
+            "classify_delivery",
+            '"delivery": delivery',
         ),
         "scripts/reconstruct_course_structure.py": (
             "collect_syllabus_supplements",
@@ -202,13 +204,19 @@ def bundle_capabilities(bundle_root: Path) -> dict[str, dict[str, Any]]:
             "DEFAULT_SYLLABUS_HOSTS",
             "package_html_link",
         ),
+        "schemas/progress_events_schema.json": (
+            '"delivery"',
+            '"usable"',
+            '"empty"',
+            '"core_failures"',
+        ),
     }
     for relative, markers in required_markers.items():
         text = (bundle_root / relative).read_text(encoding="utf-8")
         missing = [marker for marker in markers if marker not in text]
         if missing:
             raise RuntimeError(
-                f"Selected bundle lacks linked-syllabus release markers in {relative}: "
+                f"Selected bundle lacks required release markers in {relative}: "
                 + ", ".join(missing)
             )
     return {
@@ -225,7 +233,14 @@ def bundle_capabilities(bundle_root: Path) -> dict[str, dict[str, Any]]:
                 "brightspace-blueprint-bundle/scripts/build_blueprint_bundle.py",
                 "brightspace-blueprint-bundle/scripts/reconstruct_course_structure.py",
             ],
-        }
+        },
+        "delivery_usability": {
+            "status": "producer_declared",
+            "progress_contract": "coursecraft.progress/1",
+            "minimum_bundle_version": "1.3.1",
+            "fields": ["usable", "empty", "core_failures"],
+            "consumer_rule": "do_not_present_outputs_when_usable_is_false",
+        },
     }
 
 

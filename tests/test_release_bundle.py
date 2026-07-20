@@ -121,12 +121,18 @@ class RunnerReleaseBundleTests(unittest.TestCase):
                 )
             (scripts / "build_blueprint_bundle.py").write_text(
                 "--no-syllabus-fetch\nlinked_syllabus_fetch_requested\n"
-                "content retained as primary\n",
+                "content retained as primary\nclassify_delivery\n"
+                '"delivery": delivery\n',
                 encoding="utf-8",
             )
             (scripts / "reconstruct_course_structure.py").write_text(
                 "collect_syllabus_supplements\nsupplemental_linked_syllabus\n"
                 "DEFAULT_SYLLABUS_HOSTS\npackage_html_link\n",
+                encoding="utf-8",
+            )
+            (schemas / "progress_events_schema.json").write_text(
+                '{"delivery":{"usable":true,"empty":false,'
+                '"core_failures":[]}}\n',
                 encoding="utf-8",
             )
 
@@ -149,12 +155,20 @@ class RunnerReleaseBundleTests(unittest.TestCase):
             scripts.mkdir()
             (scripts / "build_blueprint_bundle.py").write_text(
                 "--no-syllabus-fetch\nlinked_syllabus_fetch_requested\n"
-                "package-local content retained as primary\n",
+                "package-local content retained as primary\nclassify_delivery\n"
+                '"delivery": delivery\n',
                 encoding="utf-8",
             )
             (scripts / "reconstruct_course_structure.py").write_text(
                 "collect_syllabus_supplements\nsupplemental_linked_syllabus\n"
                 "DEFAULT_SYLLABUS_HOSTS\npackage_html_link\n",
+                encoding="utf-8",
+            )
+            schemas = bundle / "schemas"
+            schemas.mkdir()
+            (schemas / "progress_events_schema.json").write_text(
+                '{"delivery":{"usable":true,"empty":false,'
+                '"core_failures":[]}}\n',
                 encoding="utf-8",
             )
 
@@ -168,10 +182,14 @@ class RunnerReleaseBundleTests(unittest.TestCase):
                 capabilities["linked_syllabus_supplement"]["discovery_shapes"],
                 ["manifest_item_link", "package_html_link"],
             )
+            self.assertEqual(
+                capabilities["delivery_usability"]["consumer_rule"],
+                "do_not_present_outputs_when_usable_is_false",
+            )
             (scripts / "reconstruct_course_structure.py").write_text(
                 "# missing capability markers\n", encoding="utf-8"
             )
-            with self.assertRaisesRegex(RuntimeError, "lacks linked-syllabus release markers"):
+            with self.assertRaisesRegex(RuntimeError, "lacks required release markers"):
                 release.bundle_capabilities(bundle)
 
 

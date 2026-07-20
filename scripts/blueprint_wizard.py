@@ -34,7 +34,7 @@ REQUIRED_MODULES = [
     ("docx", "python-docx"),
     ("jsonschema", "jsonschema"),
 ]
-VERSION = "2.8.0"
+VERSION = "2.8.1"
 
 INSTALL_ROOT_ENV = "BLUEPRINT_WIZARD_INSTALL_ROOT"
 DATA_ROOT_ENV = "BLUEPRINT_WIZARD_DATA_ROOT"
@@ -911,6 +911,63 @@ def run_pipeline(
 # --------------------------------------------------------------------------- #
 # Results
 # --------------------------------------------------------------------------- #
+MAX_CORE_FAILURES_SHOWN = 6
+
+
+def _delivery_usable(delivery: dict) -> bool:
+    """Read the producer's fidelity verdict conservatively.
+
+    Producers through Bundle 1.3.0 omit ``delivery`` entirely and keep the
+    legacy Runner behavior.  Once the object is present, a malformed falsy
+    value (including common string encodings) must never broaden an explicitly
+    unusable run into success.  Unknown additive keys remain harmless.
+    """
+    raw = delivery.get("usable", True)
+    if isinstance(raw, str):
+        return raw.strip().lower() not in {"false", "no", "0", ""}
+    return bool(raw)
+
+
+def _core_failure_names(delivery: dict) -> list[str]:
+    raw = delivery.get("core_failures")
+    if not isinstance(raw, (list, tuple)):
+        return []
+    names: list[str] = []
+    for item in raw:
+        text = str(item).strip() if item is not None else ""
+        if text:
+            names.append(text[:80])
+        if len(names) >= MAX_CORE_FAILURES_SHOWN:
+            break
+    return names
+
+
+def unusable_delivery(run_end: dict) -> str | None:
+    """Return an honest failure reason when the producer disowns its output.
+
+    A missing or non-object delivery value is legacy behavior.  This keeps the
+    Runner compatible with Bundle <=1.3.0 without re-deriving fidelity from
+    files on disk.
+    """
+    delivery = run_end.get("delivery")
+    if not isinstance(delivery, dict) or _delivery_usable(delivery):
+        return None
+    failed = _core_failure_names(delivery)
+    if failed:
+        return "Core evidence steps failed: " + ", ".join(failed)
+    return "The pipeline reported that its documents do not mirror the export."
+
+
+def empty_course_delivery(run_end: dict) -> bool:
+    """True only for a producer-approved result with zero extracted weeks."""
+    delivery = run_end.get("delivery")
+    return (
+        isinstance(delivery, dict)
+        and _delivery_usable(delivery)
+        and bool(delivery.get("empty"))
+    )
+
+
 def _output_row(label: str, path_text: str | None, emphasis: str = "normal") -> tuple[str, str] | None:
     if not path_text:
         return None
@@ -940,6 +997,13 @@ def show_results(run_end: dict, log_path: Path, args: argparse.Namespace, elapse
         rows.append(("Run status", TERM.bad("Error — recovered outputs are incomplete")))
     else:
         rows.append(("Run status", TERM.good("Complete")))
+    if empty_course_delivery(run_end):
+        rows.append(
+            (
+                "Course structure",
+                TERM.warn("No weekly structure — the blueprint mirrors an empty course"),
+            )
+        )
     weeks = summary.get("weeks")
     if weeks is not None:
         rows.append(("Weeks", str(weeks)))
@@ -1012,6 +1076,39 @@ def show_results(run_end: dict, log_path: Path, args: argparse.Namespace, elapse
     elif shutil.which("xdg-open") and bundle_dir.exists():
         if ui.confirm(TERM, "Open the output folder?", default=True):
             subprocess.run(["xdg-open", str(bundle_dir)], check=False)
+
+
+def show_unusable_delivery(
+    run_end: dict,
+    log_path: Path,
+    args: argparse.Namespace,
+) -> None:
+    """Present a producer-declared fidelity failure without offering outputs."""
+    reason = unusable_delivery(run_end) or "The export could not be read faithfully."
+    rows = [
+        (
+            "Run status",
+            TERM.bad("Failed reading — emitted documents do not mirror the export"),
+        ),
+        ("Reason", reason),
+        ("", ""),
+        (TERM.dim("Full log"), TERM.dim(str(log_path))),
+    ]
+    print()
+    print(ui.card(TERM, TERM.bad("The export could not be read as a course"), rows))
+    print(
+        TERM.dim(
+            "  Nothing reviewable is being presented. Confirm this is the untouched "
+            "ZIP from Brightspace Import / Export / Copy Components, then rerun."
+        )
+    )
+    if args.yes or TERM.plain:
+        return
+    opener = "open" if sys.platform == "darwin" else shutil.which("xdg-open")
+    if opener and log_path.exists() and ui.confirm(
+        TERM, "Open the full run log?", default=False
+    ):
+        subprocess.run([opener, str(log_path)], check=False)
 
 
 def show_failure(
@@ -1106,6 +1203,9 @@ def run_wizard(args: argparse.Namespace) -> int:
         path_text and Path(path_text).exists()
         for path_text in (outputs.get("docx"), outputs.get("markdown"))
     )
+    if run_end and unusable_delivery(run_end):
+        show_unusable_delivery(run_end, log_path, args)
+        return returncode or 1
     if run_end and usable_output:
         status = run_end.get("status")
         if not TERM.plain:

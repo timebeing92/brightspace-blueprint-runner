@@ -5,6 +5,18 @@ README double as a changelog. Exact release assets, checksums, and verification
 evidence remain attached to the corresponding
 [GitHub releases](https://github.com/timebeing92/brightspace-blueprint-runner/releases).
 
+## v2.8.1 — 2026-07-19
+
+Paired the Wizard with Bundle v1.3.2 and adopted its producer-owned delivery
+verdict. A partial whose core evidence failed is now presented as a failed
+reading rather than a usable blueprint, even when fallback documents exist. A
+faithfully mirrored course with no weekly structure remains downloadable and
+is labeled explicitly. Producers through Bundle v1.3.0, which omit the
+additive `delivery` object, keep the previous behavior. Known fields are read
+conservatively and unknown additive fields remain forward-compatible.
+
+See the [detailed v2.8.1 release notes](docs/releases/v2.8.1.md).
+
 ## v2.8.0 — 2026-07-17
 
 Added the stable managed launcher. Complete Runner/Bundle pairs install side by
