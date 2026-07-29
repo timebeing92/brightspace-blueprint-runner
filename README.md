@@ -1,5 +1,11 @@
 # Blueprint Wizard
 
+<p align="center">
+  <img src="docs/assets/blueprint-wizard-terminal.svg"
+       alt="Color pixel-art Blueprint Wizard drafting course plans on blue paper"
+       width="620">
+</p>
+
 Blueprint Wizard turns a Brightspace/D2L course export into a comprehensive,
 review-ready course blueprint. It gathers course structure, activities,
 rubrics, QA findings, and source-traceable run evidence through one guided
@@ -17,25 +23,7 @@ linked-syllabus retrieval—need a connection. There is no AI involved
 whatsoever; this is traditional software built from explicit logic and
 repeatable checks.
 
-```text
-         ▄                           ▄
-       ▄            ▀                     ▄
-     ▄███▄            ▄
-   ▄███████▄                  ▄
-  ▀▀▀█████▀▀▀
-    ███████
-    ▄█████▄
-  ▄█████████████
-  ███████████
-  ███████████    █▀▀▀█  █▀▀▀█   █▀▀▀▀▀█
-  ███████████    ▀▀▀▀▀ ▄▀▀▀▀▀ ▄ ▀▀▀▀▀▀▀
-              ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
-                  ██                    ██
-
-      B L U E P R I N T   W I Z A R D
-```
-
-## What it produces
+## What it produces—and does not do
 
 Depending on the source export and selected options, a run can produce:
 
@@ -53,16 +41,20 @@ Wizard presents a failed reading instead of offering those documents as a
 blueprint. A faithfully mirrored course with no weekly structure remains usable
 and is labeled explicitly.
 
-## How the parts fit
+The Wizard reads and reports. It does not:
 
-A one-terminal wizard for the adjacent [brightspace-blueprint-bundle](https://github.com/timebeing92/brightspace-blueprint-bundle) project:
-it checks the machine, prepares the bundle's `.venv`, walks through the
-options, runs the blueprint pipeline with a live step display, and finishes
-with a results card. The pipeline itself lives entirely in the bundle — the
-wizard wraps its CLI and consumes its progress-event contract
-(`coursecraft.progress/1`); it never re-implements extraction logic.
+- import anything into Brightspace or change the source export;
+- turn QA findings into automatic course corrections;
+- treat missing evidence as proof that a course component does not exist; or
+- replace human review and judgment.
 
-## Current release
+If you encounter an error, please
+[open a GitHub issue](https://github.com/timebeing92/brightspace-blueprint-runner/issues)
+and include your operating system, Wizard version, the step you were running,
+and the complete error message. Do not post course exports, institutional
+course content, learner data, or other sensitive material.
+
+## Download and start
 
 The current release is **Blueprint Wizard v2.8.1**, paired with **Blueprint
 Bundle v1.3.2**. Most users should choose the managed release ZIP described
@@ -84,31 +76,41 @@ guide.
 > do not use git. It can apply future verified releases without replacing user
 > work. Git clone remains the contributor path.
 
-## Install
+### Installation paths
 
 Three pathways — pick the one that matches how you like to get software.
-Whichever you choose, first run is the same: the wizard checks the machine
-and asks permission before installing anything it needs (Python packages go
-in a private `.venv`; nothing touches your system Python).
+Whichever you choose, the Wizard first looks for an existing Python 3.11 or
+newer installation and reuses it. Python is not reinstalled when a supported
+copy is already present. If Python is missing, the launcher asks before
+installing it. Required Python packages go into the bundle's private `.venv`,
+not into the system Python.
 
 **1. Managed release ZIP — recommended for most people.** Download the latest
-`blueprint-wizard-managed-vX.Y.Z.zip` from the GitHub Releases page, unzip it,
-and double-click `Blueprint Wizard.command` (macOS) or `Blueprint Wizard.bat`
-(Windows). Choose this if you just want to use the tool: no git and no terminal
-knowledge. A future update is installed only after confirmation, verified as a
-complete Runner/Bundle pair, and kept beside the current version so rollback
-remains possible. Settings, logs, and generated outputs stay in `user-data/`
-and are not removed during version cleanup.
+`blueprint-wizard-managed-vX.Y.Z.zip` from the GitHub Releases page and unzip
+it before opening the Wizard. Then:
+
+- **macOS:** double-click `Blueprint Wizard.command`. If macOS blocks it, try
+  once, dismiss the warning, then open **System Settings > Privacy &
+  Security**. Scroll to **Security**, choose **Open Anyway**, authenticate,
+  and confirm **Open**.
+- **Windows:** double-click `Blueprint Wizard.bat`.
+- **Linux:** run `bash blueprint_wizard_launcher.sh`.
+
+Choose this path if you just want to use the tool: no git and no terminal
+knowledge are required on macOS or Windows. A future update is installed only
+after confirmation, verified as a complete Runner/Bundle pair, and kept beside
+the current version so rollback remains possible. Settings, logs, and
+generated outputs stay in `user-data/` and are not removed during version
+cleanup.
 
 The release also includes `blueprint-wizard-vX.Y.Z.zip`, the original portable
 one-folder distribution. Existing portable users may continue with it, and the
 managed updater uses that exact asset as its version payload. Portable folders
 show update notices but do not replace themselves.
 
-The v2.8.1 ZIPs are unsigned and are not notarized. On macOS, Gatekeeper may
-require right-clicking `Blueprint Wizard.command` and choosing Open on first
-launch. Windows or institution-managed devices may show an equivalent trust
-prompt. Do not weaken system-wide security settings.
+The v2.8.1 ZIPs are unsigned and are not notarized. Windows or
+institution-managed devices may show an equivalent trust prompt. Do not weaken
+system-wide security settings.
 
 **2. git clone — for contributors and people following development.** Clone
 the two repos as sibling folders, then launch from the runner:
@@ -135,36 +137,6 @@ commits, checks out that recorded runner/bundle pair, and writes
 compatible pair without combining two independent moving `main` branches.
 Choose this if you live in the terminal and want the fastest zero-to-wizard
 path. Requires git — both repos are public, so this works for anyone.
-
-Maintainers cut both release ZIPs from the same explicit commits:
-
-```bash
-python3 scripts/make_release_bundle.py \
-  --runner-ref "$(git rev-parse HEAD)" \
-  --bundle-ref "$(git -C ../brightspace-blueprint-bundle rev-parse HEAD)"
-
-python3 scripts/make_managed_install_bundle.py \
-  --runner-ref "$(git rev-parse HEAD)" \
-  --bundle-ref "$(git -C ../brightspace-blueprint-bundle rev-parse HEAD)"
-```
-
-The builders refuse dirty worktrees by default and write
-`RELEASE_MANIFEST.json` inside each version payload with both repository
-commits and the bundle contract hashes. New manifests also checksum the shipped
-pipeline entry point and course-structure extractor, so managed installs reject
-runtime-file drift even when the surrounding folder still looks complete. The
-manifest also declares the linked-syllabus supplement capability and refuses
-to package a bundle missing its authority, opt-out, or non-fatal extraction
-markers. A sibling `.sha256` file records each ZIP checksum.
-After publishing a compatible pair, refresh the installer record with:
-
-```bash
-python3 scripts/update_installer_compatibility.py \
-  --runner-ref vX.Y.Z \
-  --bundle-ref vA.B.C
-```
-
-The generated lock is reviewed and committed; it is not edited by hand.
 
 ## Run
 
@@ -252,6 +224,40 @@ installer obtains the currently recorded verified runner/bundle pair. Portable
 release users should download and unzip the newer `blueprint-wizard-vX.Y.Z.zip`
 from the release page.
 
+## Architecture and source boundary
+
+This repository owns the one-download experience: launchers, environment
+setup, release pairing, update verification, activation, rollback, persistent
+user-data boundaries, and the guided terminal presentation. It does not parse
+Brightspace XML or define extraction semantics.
+
+CourseCraft Workbench is the upstream living library and development lab for
+the CourseCraft tool family. It curates authoritative development copies of
+shared schemas, extraction methods, and producer code alongside scripts,
+tests, experiments, technical writing, and documentation. Work there may be
+exploratory; reviewed, verified, production-ready methods are promoted into
+downstream products. People using Blueprint Wizard do not need to access,
+install, or operate the Workbench.
+
+The adjacent
+[brightspace-blueprint-bundle](https://github.com/timebeing92/brightspace-blueprint-bundle)
+is the pinned engine. It owns the extraction pipeline, emitted artifacts, JSON
+contracts, progress events, and bundle-side validation. This runner checks the
+machine, prepares the bundle's `.venv`, walks through the options, drives the
+pipeline, and presents its reported progress and results. It does not
+re-implement extraction logic.
+
+```text
+CourseCraft Workbench
+(living library + development lab)
+        │ reviewed, production-ready methods
+        ▼
+brightspace-blueprint-bundle
+        │
+        ├── CourseCraft Workshop
+        └── brightspace-blueprint-runner
+```
+
 ## Non-Interactive Use
 
 ```bash
@@ -308,6 +314,39 @@ brightspace-blueprint-runner/
 `ui.py` and `art.py` are deliberately free of blueprint knowledge so future
 runner wizards (and an eventual multi-tool launcher) can reuse them — see the
 render-stack decision record in the workbench `DEVELOPMENT_ROADMAP.md`.
+
+## Maintainer release construction
+
+Maintainers cut both release ZIPs from the same explicit commits:
+
+```bash
+python3 scripts/make_release_bundle.py \
+  --runner-ref "$(git rev-parse HEAD)" \
+  --bundle-ref "$(git -C ../brightspace-blueprint-bundle rev-parse HEAD)"
+
+python3 scripts/make_managed_install_bundle.py \
+  --runner-ref "$(git rev-parse HEAD)" \
+  --bundle-ref "$(git -C ../brightspace-blueprint-bundle rev-parse HEAD)"
+```
+
+The builders refuse dirty worktrees by default and write
+`RELEASE_MANIFEST.json` inside each version payload with both repository
+commits and the bundle contract hashes. New manifests also checksum the shipped
+pipeline entry point and course-structure extractor, so managed installs reject
+runtime-file drift even when the surrounding folder still looks complete. The
+manifest also declares the linked-syllabus supplement capability and refuses
+to package a bundle missing its authority, opt-out, or non-fatal extraction
+markers. A sibling `.sha256` file records each ZIP checksum.
+
+After publishing a compatible pair, refresh the installer record with:
+
+```bash
+python3 scripts/update_installer_compatibility.py \
+  --runner-ref vX.Y.Z \
+  --bundle-ref vA.B.C
+```
+
+The generated lock is reviewed and committed; it is not edited by hand.
 
 ## Running Tests
 
