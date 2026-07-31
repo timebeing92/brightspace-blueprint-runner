@@ -23,6 +23,21 @@ linked-syllabus retrieval—need a connection. There is no AI involved
 whatsoever; this is traditional software built from explicit logic and
 repeatable checks.
 
+> [!IMPORTANT]
+> **Download the release, not the source-code ZIP.** Use **Releases** in the
+> repository sidebar and download `blueprint-wizard-managed-vX.Y.Z.zip`. Do
+> not use the green **Code > Download ZIP** button; that archive omits the
+> paired Blueprint Bundle engine.
+>
+> **macOS first launch:** unzip the release and try
+> `Blueprint Wizard.command` once. If macOS blocks it, open **Apple menu >
+> System Settings > Privacy & Security**. Under **Security**, click **Open**,
+> then **Open Anyway**, and enter your Mac login password.
+>
+> See [Install, update, and troubleshoot Blueprint Wizard](INSTALL_AND_TROUBLESHOOT.md)
+> for the complete first-run workflow, release capabilities, health checks,
+> rollback, logs, and common installation or run problems.
+
 ## What it produces—and does not do
 
 Depending on the source export and selected options, a run can produce:
@@ -63,14 +78,6 @@ verification evidence, and exact component identities. Version-by-version
 changes now live in the [changelog](CHANGELOG.md) rather than interrupting this
 guide.
 
-> [!IMPORTANT]
-> Do not use GitHub's green **Code -> Download ZIP** button as the one-download
-> install. That source ZIP contains only this runner repo, not the companion
-> `brightspace-blueprint-bundle` pipeline repo, so the wizard will not run from
-> it by itself. For a single download, use the latest
-> `blueprint-wizard-managed-vX.Y.Z.zip` from the
-> [GitHub Releases page](https://github.com/timebeing92/brightspace-blueprint-runner/releases).
-
 > [!NOTE]
 > The managed release ZIP is the recommended installation for colleagues who
 > do not use git. It can apply future verified releases without replacing user
@@ -89,10 +96,9 @@ not into the system Python.
 `blueprint-wizard-managed-vX.Y.Z.zip` from the GitHub Releases page and unzip
 it before opening the Wizard. Then:
 
-- **macOS:** double-click `Blueprint Wizard.command`. If macOS blocks it, try
-  once, dismiss the warning, then open **System Settings > Privacy &
-  Security**. Scroll to **Security**, choose **Open Anyway**, authenticate,
-  and confirm **Open**.
+- **macOS:** double-click `Blueprint Wizard.command`. If macOS blocks it, use
+  the **Privacy & Security** workflow in the callout above or the
+  [installation guide](INSTALL_AND_TROUBLESHOOT.md).
 - **Windows:** double-click `Blueprint Wizard.bat`.
 - **Linux:** run `bash blueprint_wizard_launcher.sh`.
 
