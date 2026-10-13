@@ -71,9 +71,9 @@ course content, learner data, or other sensitive material.
 
 ## Download and start
 
-The current release is **Blueprint Wizard v2.8.1**, paired with **Blueprint
-Bundle v1.3.2**. Most users should choose the managed release ZIP described
-below. See the [v2.8.1 release notes](docs/releases/v2.8.1.md) for checksums,
+The current release is **Blueprint Wizard v2.9.0**, paired with **Blueprint
+Bundle v1.4.0**. Most users should choose the managed release ZIP described
+below. See the [v2.9.0 release notes](docs/releases/v2.9.0.md) for checksums,
 verification evidence, and exact component identities. Version-by-version
 changes now live in the [changelog](CHANGELOG.md) rather than interrupting this
 guide.
@@ -114,7 +114,7 @@ one-folder distribution. Existing portable users may continue with it, and the
 managed updater uses that exact asset as its version payload. Portable folders
 show update notices but do not replace themselves.
 
-The v2.8.1 ZIPs are unsigned and are not notarized. Windows or
+The v2.9.0 ZIPs are unsigned and are not notarized. Windows or
 institution-managed devices may show an equivalent trust prompt. Do not weaken
 system-wide security settings.
 

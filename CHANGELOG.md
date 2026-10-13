@@ -5,6 +5,18 @@ README double as a changelog. Exact release assets, checksums, and verification
 evidence remain attached to the corresponding
 [GitHub releases](https://github.com/timebeing92/brightspace-blueprint-runner/releases).
 
+## v2.9.0 — 2026-10-13
+
+Paired the Wizard with Bundle v1.4.0: the Bundle's structure-fidelity refresh
+(model `coursecraft.blueprint/5`, one-to-one Word headings, panels and
+internal links written in the Blueprint Packager's bracket form) plus heading
+ownership, the conservative panel reader, the DOCX page-flow fix and the
+page-chrome QA note. The Wizard's runtime is unchanged; the release receipt
+now lists the Bundle's `coursecraft.run/2` schema beside run/1, the CI
+checkouts pin the released Bundle commit, and the README names the pair.
+
+See the [detailed v2.9.0 release notes](docs/releases/v2.9.0.md).
+
 ## v2.8.1 — 2026-07-19
 
 Paired the Wizard with Bundle v1.3.2 and adopted its producer-owned delivery

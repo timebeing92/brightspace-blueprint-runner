@@ -34,7 +34,7 @@ REQUIRED_MODULES = [
     ("docx", "python-docx"),
     ("jsonschema", "jsonschema"),
 ]
-VERSION = "2.8.1"
+VERSION = "2.9.0"
 
 INSTALL_ROOT_ENV = "BLUEPRINT_WIZARD_INSTALL_ROOT"
 DATA_ROOT_ENV = "BLUEPRINT_WIZARD_DATA_ROOT"

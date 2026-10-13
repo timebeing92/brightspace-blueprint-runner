@@ -155,6 +155,7 @@ def schema_receipt(bundle_root: Path) -> list[dict[str, str]]:
         "schemas/activities_schema.json",
         "schemas/blueprint_schema.json",
         "schemas/run_identity_schema.json",
+        "schemas/run_identity_2_schema.json",
         "schemas/rubrics_schema.json",
         "schemas/structure_schema.json",
         "schemas/progress_events_schema.json",
